@@ -9,10 +9,13 @@
         "lint": "next lint"
     },
     "dependencies": {
+        "@supabase/ssr": "latest",
+        "@supabase/supabase-js": "latest",
         "next": "15.1.7",
         "pg": "^8.13.3",
         "react": "^19.0.0",
-        "react-dom": "^19.0.0"
+        "react-dom": "^19.0.0",
+        "supabase": "^2.12.1"
     },
     "devDependencies": {
         "@eslint/eslintrc": "^3",
