@@ -16,7 +16,7 @@ export default async function Page() {
     const { data: courses } = await supabase.from("courses").select().eq('course_id', courseid);
 
     // Date helper functions
-    function getMonth(date) {
+    function getMonth(date: Date) {
         const formattedDate = new Date(date);
         const monthNames = ["January", "February", "March", "April", "May", "June",
             "July", "August", "September", "October", "November", "December"
@@ -25,18 +25,18 @@ export default async function Page() {
         return monthNames[formattedDate.getMonth()];
     }
 
-    function getDay(date) {
+    function getDay(date: Date) {
         const formattedDate = new Date(date);
         return formattedDate.getDate();
     }
 
-    function getYear(date) {
+    function getYear(date: Date) {
         const formattedDate = new Date(date);
         return formattedDate.getFullYear();
     }
 
     // Assignment Completion Helper Function
-    function getPercentage(question_count, questions_complete) {
+    function getPercentage(question_count: number, questions_complete: number) {
         let completion = 100 * (questions_complete / question_count);
         return completion.toFixed(2);
     }
