@@ -7,7 +7,7 @@ export default async function Page() {
 
     // Hardcoded Test Values for Student and Course IDs
     const id = '01234567'; //We might have to process student and instuctor IDs as strings since DBS and ts don't like leading zeroes
-    const courseid = 21667;
+    const courseid = '21667';
 
     // fetch from DB
     const supabase = await createClient();
@@ -37,7 +37,7 @@ export default async function Page() {
 
     // Assignment Completion Helper Function
     function getPercentage(question_count: number, questions_complete: number) {
-        let completion = 100 * (questions_complete / question_count);
+        const completion = 100 * (questions_complete / question_count);
         return completion.toFixed(2);
     }
 
