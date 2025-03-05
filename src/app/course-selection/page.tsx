@@ -1,13 +1,29 @@
 import React from "react";
+import Link from "next/link";
+import { redirect } from 'next/navigation';
 import { createClient } from '@/utils/supabase/server'
 
-export default async function Page() {
-
-    const id = '016213067' // Temporary Hardcoded Variable
+export default async function CourseSelection() {
 
     const supabase = await createClient();
-    const { data: my_courseIDs } = await supabase.from('course_enrollments').select('course_id').eq('student_id', id);
 
+    const { data, error } = await supabase.auth.getUser()
+      if (error || !data?.user) {
+        redirect('/login')
+      }
+
+
+    const { data: id } = await supabase.from('students').select('student_id').eq('system_id', data.user.id).single();
+    if(!id){
+        return (
+            <div>
+                <p> UH OH </p>
+            </div>
+        )
+    }
+
+    const { data: my_courseIDs } = await supabase.from('course_enrollments').select('course_id').eq('student_id', id.student_id);
+    
     if (!my_courseIDs || my_courseIDs.length <= 0) { // Error Checking for if student has no enrollments
         return (
             <div>
@@ -41,7 +57,7 @@ export default async function Page() {
 
     const instructorMap = new Map(instructors.map(instructor => [instructor.instructor_id, instructor]));
 
-    function getInstructor(instructor_id: string){
+    function getInstructor(instructor_id: string) {
         return instructorMap.get(instructor_id);
     }
 
@@ -51,10 +67,12 @@ export default async function Page() {
             <h1> Courses: </h1>
             <ul>
                 {courses.map((course, index) => (
-                    <li key={course.id || index}>
-                        ({course.course_id}) {course.catalog_code}: {course.course_name}
-                        <br />
-                        Instructor: {getInstructor(course.instructor_id).first_name} {getInstructor(course.instructor_id).last_name}
+                    <li key={course.course_id || index}>
+                        <Link href={`/student-dashboard/${course.course_id}`}>
+                            ({course.course_id}) {course.catalog_code}: {course.course_name}
+                            <br />
+                            Instructor: {getInstructor(course.instructor_id).first_name} {getInstructor(course.instructor_id).last_name}
+                        </Link>
                     </li>
                 ))}
             </ul>
