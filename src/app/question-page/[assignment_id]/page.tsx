@@ -37,11 +37,27 @@ export default async function QuestionPage({ params }: { params: AssignmentParam
         return <div> Error Retrieving Blocks </div>;
     }
 
+    const { data: submissionData } = await supabase
+        .from("student_submissions")
+        .select('submission_id')
+        .eq('assignment_id', assignment_id)
+        .eq('student_id', studentId.student_id)
+        .single();
+
+    if (!submissionData) {
+        return <div> Error Retrieving Submissions </div>;
+    }
+
+    const submission_id: number = submissionData.submission_id;
+
+
     // Pass data to client component
     return (
         <ClientComponent
             assignmentName={assignmentName}
             blocks={blocks}
+            submissionId={submission_id}
+            studentId={studentId.student_id}
         />
     );
 }
