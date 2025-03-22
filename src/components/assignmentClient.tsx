@@ -33,7 +33,6 @@ const ClientComponent: React.FC<ClientComponentProps> = ({ assignmentName, block
     const [userAnswers, setUserAnswers] = useState(
         questions.map(() => ({ answer: '', correct: false }))
     );
-    const [bestScore, setBest] = useState(0);
 
     // Use the createClient function to initialize a Supabase client
     const supabase = createClient();
@@ -94,10 +93,6 @@ const ClientComponent: React.FC<ClientComponentProps> = ({ assignmentName, block
         // Calculate percentage correct
         const percentageCorrect = (totalPointsEarned / totalPossiblePoints) * 100;
 
-        if (percentageCorrect > bestScore) {
-            setBest(percentageCorrect);
-        }
-
         // Prepare data for insertion into Supabase
         const submissionData = {
             student_id: studentId,
@@ -117,61 +112,91 @@ const ClientComponent: React.FC<ClientComponentProps> = ({ assignmentName, block
             return;
         }
 
-        if (version + 1 >= 4) {
-            const { error } = await supabase
-                .from('block_submissions')
-                .update({ final_score: bestScore })
-                .eq('block_id', blocks[currentBlock].block_id)
-                .eq('student_id', studentId);
-
-            console.log('Block:', blocks[currentBlock].block_id, "- SID: ", studentId)
-
-            if (error) {
-                console.error('Error updating block submission:', error);
-            } else {
-                console.log('Block submission updated successfully');
-            }
-
-        }
+        const { } = await supabase
+            .from('block_submissions')
+            .update({ score: percentageCorrect })
+            .eq('block_id', blocks[currentBlock].block_id)
+            .eq('student_id', studentId)
+            .eq('block_version', version);
 
         alert(`You scored ${totalPointsEarned}/${totalPossiblePoints} points (${percentageCorrect.toFixed(2)}%)!`);
 
         advance(percentageCorrect, 100);
     }
 
-
-
     async function nextBlock() {
 
-        const{data: completion} = await supabase
-        .from('student_submissions')
-        .select('blocks_complete')
-        .eq('submission_id', submissionId)
-        .single();
+        const { data: completion } = await supabase
+            .from('student_submissions')
+            .select('blocks_complete')
+            .eq('submission_id', submissionId)
+            .single();
 
         if (!completion) {
             console.error('Error reading assignment submission:');
             return;
         }
 
-        const{error} = await supabase
-        .from('student_submissions')
-        .update({blocks_complete: completion.blocks_complete + 1})
-        .eq('submission_id', submissionId);
+        const { error } = await supabase
+            .from('student_submissions')
+            .update({ blocks_complete: completion.blocks_complete + 1 })
+            .eq('submission_id', submissionId);
 
         if (error) {
             console.error('Error updating assignment submission:', error);
         }
-        
+
+        const { data: scores } = await supabase
+            .from('block_submissions')
+            .select('score')
+            .eq('student_id', studentId)
+            .eq('block_id', blocks[currentBlock].block_id);
+
+        if (!scores || scores.length === 0) {
+            console.warn('No scores found for the block.');
+            return;
+        }
+
+        const maxScore = Math.max(...scores.map(score => score.score));
+
+        console.log('Maximum Score:', maxScore);
+
+        const { data: assignmentScores } = await supabase
+            .from('student_submissions')
+            .select('block_scores')
+            .eq('submission_id', submissionId)
+            .single();
+
+        let scoreArray = [];
+
+        if (assignmentScores && assignmentScores.block_scores) {
+            if (Array.isArray(assignmentScores.block_scores)) {
+                scoreArray = assignmentScores.block_scores;
+            } else {
+                console.warn('block_scores is not an array. Initializing as an empty array.');
+                scoreArray = [];
+            }
+        }
+
+        const newScoreArray = [...scoreArray, maxScore];
+
+        const { } = await supabase
+            .from('student_submissions')
+            .update({ block_scores: newScoreArray })
+            .eq("submission_id", submissionId);
+
+
         if (currentBlock + 1 >= blocks.length) {
             alert("You have completed all blocks!");
             return;
         }
+
         setCurrentBlock(currentBlock + 1);
+
         setVersion(0);
     }
 
-    function nextVersion() {
+    async function nextVersion() {
         if (version + 1 >= 4) {
             alert("You have completed all versions!");
             nextBlock();
