@@ -1,19 +1,43 @@
 import React from "react"
-
 import { createClient } from '@/utils/supabase/server'
+import { redirect } from 'next/navigation';
 
 
-export default async function Page() {
+type CourseParams = { course_id: string };
 
+<<<<<<< HEAD:src/app/student-dashboard/page.tsx
     // Hardcoded Test Values for Student and Course IDs
     const id = '016213067'; //We might have to process student and instuctor IDs as strings since DBS and ts don't like leading zeroes
     const courseid = 21667;
+=======
+export default async function StudentDashboard({ params }: { params: CourseParams }) {
+
+    const supabase = await createClient();
+
+    const { data, error } = await supabase.auth.getUser()
+    if (error || !data?.user) {
+        redirect('/login')
+    }
+
+    const { data: id } = await supabase.from('students').select('student_id').eq('system_id', data.user.id).single();
+    if (!id) {
+        return (
+            <div>
+                <p> UH OH </p>
+            </div>
+        )
+    }
+    const { course_id } = await params;
+>>>>>>> 05ea9e6e90c80469568e1371b73e181aa1363b04:src/app/student-dashboard/[course_id]/page.tsx
 
     // fetch from DB
-    const supabase = await createClient();
-    const { data: assignments } = await supabase.from("assignments_list").select().eq('course_id', courseid).eq('open', true);
-    const { data: submissions } = await supabase.from("student_submissions").select().eq('student_id', id);
-    const { data: courses } = await supabase.from("courses").select().eq('course_id', courseid);
+    const { data: assignments } = await supabase.from("assignments_list").select().eq('course_id', course_id).eq('open', true);
+    const { data: submissions } = await supabase.from("student_submissions").select().eq('student_id', id.student_id);
+    const { data: courses } = await supabase.from("courses").select().eq('course_id', course_id);
+
+    console.log("Courses:", courses);
+    console.log("Assignments:", assignments);
+    console.log("Submissions", submissions)
 
     // Date helper functions
     function getMonth(date: Date) {
@@ -37,11 +61,11 @@ export default async function Page() {
 
     // Assignment Completion Helper Function
     function getPercentage(question_count: number, questions_complete: number) {
-        let completion = 100 * (questions_complete / question_count);
+        const completion = 100 * (questions_complete / question_count);
         return completion.toFixed(2);
     }
 
-    if (!assignments || assignments.length === 0 
+    if (!assignments || assignments.length === 0
         || !submissions || submissions.length === 0
         || !courses || courses.length === 0) {
         return (
@@ -74,20 +98,20 @@ export default async function Page() {
 
         // }
         return (
-        <div>
-            <h1> {courses[0].course_name} </h1>
-            <ul>
-                {assignments.map((assignment, index) => (
-                    <li key={assignment.id || index}>
-                        {assignment.assignment_name}
-                        <br />
-                        Completion: {getPercentage(assignment.question_count, submissions[index].questions_complete)}%
-                        <br />
-                        Due: {getMonth(assignment.due_date)} {getDay(assignment.due_date)}, {getYear(assignment.due_date)}
-                    </li>
-                ))}
-            </ul>
-        </div>
+            <div>
+                <h1> {courses[0].course_name} </h1>
+                <ul>
+                    {assignments.map((assignment, index) => (
+                        <li key={assignment.id || index}>
+                            {assignment.assignment_name}
+                            <br />
+                            Completion: {getPercentage(assignment.question_count, submissions[index].questions_complete)}%
+                            <br />
+                            Due: {getMonth(assignment.due_date)} {getDay(assignment.due_date)}, {getYear(assignment.due_date)}
+                        </li>
+                    ))}
+                </ul>
+            </div>
         );
     }
 
