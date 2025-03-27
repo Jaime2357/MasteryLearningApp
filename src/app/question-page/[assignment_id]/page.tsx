@@ -54,6 +54,7 @@ export default async function QuestionPage({ params }: { params: AssignmentParam
     // Pass data to client component
     return (
         <ClientComponent
+            assignmentId={assignment_id}
             assignmentName={assignmentName}
             blocks={blocks}
             submissionId={submission_id}

@@ -5,11 +5,6 @@ import { redirect } from 'next/navigation';
 
 type CourseParams = { course_id: string };
 
-<<<<<<< HEAD:src/app/student-dashboard/page.tsx
-    // Hardcoded Test Values for Student and Course IDs
-    const id = '016213067'; //We might have to process student and instuctor IDs as strings since DBS and ts don't like leading zeroes
-    const courseid = 21667;
-=======
 export default async function StudentDashboard({ params }: { params: CourseParams }) {
 
     const supabase = await createClient();
@@ -28,7 +23,6 @@ export default async function StudentDashboard({ params }: { params: CourseParam
         )
     }
     const { course_id } = await params;
->>>>>>> 05ea9e6e90c80469568e1371b73e181aa1363b04:src/app/student-dashboard/[course_id]/page.tsx
 
     // fetch from DB
     const { data: assignments } = await supabase.from("assignments_list").select().eq('course_id', course_id).eq('open', true);
@@ -65,6 +59,8 @@ export default async function StudentDashboard({ params }: { params: CourseParam
         return completion.toFixed(2);
     }
 
+    console.log("New: ", assignments)
+
     if (!assignments || assignments.length === 0
         || !submissions || submissions.length === 0
         || !courses || courses.length === 0) {
@@ -76,27 +72,6 @@ export default async function StudentDashboard({ params }: { params: CourseParam
     }
     else {
 
-        //----------------------------------Logic Below is to cover for assignments w/o submissions-----------------------------------------------------
-        //---------------Our program should create a new submission for everyone in the course once as assignment is added------------------------------
-
-        // Create two lists with students assignments that they've created submissions for
-        // var countList = new Array();
-        // var completionList = new Array();
-        // for (let i = 0; i < assignments.length; i++){
-        //     let assignmentId = assignments[i].assignment_id;
-        //     let insertCount = 0;
-        //     for(let j = 0; j < submissions.length; j++){
-        //         if(submissions[j].assignment_id = assignmentId){
-        //             completionList.push(submissions[j].questions_complete);
-        //             insertCount++;
-        //             break;
-        //         }
-        //     }
-        //     if(insertCount === 1){
-        //         countList.push(assignments[i].questions_count);
-        //     }
-
-        // }
         return (
             <div>
                 <h1> {courses[0].course_name} </h1>

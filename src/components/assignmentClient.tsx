@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
+import { useRouter } from 'next/navigation';
 
 type AssignmentName = {
     assignment_name: string;
@@ -20,13 +21,17 @@ type Block = {
 };
 
 interface ClientComponentProps {
+    assignmentId: string;
     assignmentName: AssignmentName;
     blocks: Block[];
     submissionId: number;
     studentId: string;
 }
 
-const ClientComponent: React.FC<ClientComponentProps> = ({ assignmentName, blocks, studentId, submissionId }) => {
+const ClientComponent: React.FC<ClientComponentProps> = ({ assignmentId, assignmentName, blocks, studentId, submissionId }) => {
+
+    const router = useRouter();
+
     const [currentBlock, setCurrentBlock] = useState(0);
     const [version, setVersion] = useState(0);
     const [questions, setQuestions] = useState<Question[]>([]);
@@ -36,6 +41,27 @@ const ClientComponent: React.FC<ClientComponentProps> = ({ assignmentName, block
 
     // Use the createClient function to initialize a Supabase client
     const supabase = createClient();
+
+    useEffect(() => {
+        initializeState();
+    });
+
+    async function initializeState() {
+        const { data: stateData } = await supabase
+            .from('student_submissions')
+            .select('current_block, current_version')
+            .eq('student_id', studentId)
+            .eq('assignment_id', assignmentId)
+            .single();
+
+        if (!stateData) {
+            console.error('State Data not found.');
+            return;
+        }
+
+        setCurrentBlock(stateData.current_block);
+        setVersion(stateData.current_version);
+    }
 
     async function fetchQuestions() {
         if (!blocks[currentBlock]?.question_ids) {
@@ -188,8 +214,24 @@ const ClientComponent: React.FC<ClientComponentProps> = ({ assignmentName, block
 
         if (currentBlock + 1 >= blocks.length) {
             alert("You have completed all blocks!");
+            router.push(`/assignment-grade-view/${assignmentId}`);
+        }
+
+        const { data: savedBlock } = await supabase
+            .from('student_submissions')
+            .select('current_block')
+            .eq('submission_id', submissionId)
+            .single();
+
+        if (!savedBlock) {
+            console.error('Error reading assignment submission:');
             return;
         }
+
+        const { } = await supabase
+            .from('student_submissions')
+            .update({ current_block: savedBlock.current_block + 1, current_version: 0 })
+            .eq('submission_id', submissionId);
 
         setCurrentBlock(currentBlock + 1);
 
@@ -202,6 +244,22 @@ const ClientComponent: React.FC<ClientComponentProps> = ({ assignmentName, block
             nextBlock();
         }
         else {
+            const { data: savedVersion } = await supabase
+                .from('student_submissions')
+                .select('current_version')
+                .eq('submission_id', submissionId)
+                .single();
+
+            if (!savedVersion) {
+                console.error('Error reading assignment submission:');
+                return;
+            }
+
+            const { } = await supabase
+                .from('student_submissions')
+                .update({ current_version: savedVersion.current_version + 1})
+                .eq('submission_id', submissionId);
+
             setVersion(version + 1);
         }
     }
