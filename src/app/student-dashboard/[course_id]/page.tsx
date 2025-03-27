@@ -1,57 +1,72 @@
-import React from "react"
-import { createClient } from '@/utils/supabase/server'
-import { redirect } from 'next/navigation';
+import { createClient } from '@/utils/supabase/server';
+import Link from 'next/link';
 
+type Assignment = {
+    assignment_id: number;
+    assignment_name: string;
+    due_date: string;
+    question_count: number;
+};
+
+type Submission = {
+    submission_id: number;
+    assignment_id: number;
+    blocks_complete: number;
+    finished: boolean;
+};
+
+type Course = {
+    course_name: string;
+};
 
 type CourseParams = { course_id: string };
 
 export default async function StudentDashboard({ params }: { params: CourseParams }) {
-
     const supabase = await createClient();
 
-    const { data, error } = await supabase.auth.getUser()
-    if (error || !data?.user) {
-        redirect('/login')
-    }
-
-    const { data: id } = await supabase.from('students').select('student_id').eq('system_id', data.user.id).single();
-    if (!id) {
-        return (
-            <div>
-                <p> UH OH </p>
-            </div>
-        )
-    }
     const { course_id } = await params;
 
-    // fetch from DB
-    const { data: assignments } = await supabase.from("assignments_list").select().eq('course_id', course_id).eq('open', true);
-    const { data: submissions } = await supabase.from("student_submissions").select().eq('student_id', id.student_id);
-    const { data: courses } = await supabase.from("courses").select().eq('course_id', course_id);
+    console.log(course_id)
 
-    console.log("Courses:", courses);
-    console.log("Assignments:", assignments);
-    console.log("Submissions", submissions)
+    // Fetch course information
+    const { data: course, error: courseError } = await supabase
+        .from('courses')
+        .select('course_name')
+        .eq('course_id', course_id)
+        .single();
 
-    // Date helper functions
-    function getMonth(date: Date) {
-        const formattedDate = new Date(date);
-        const monthNames = ["January", "February", "March", "April", "May", "June",
-            "July", "August", "September", "October", "November", "December"
-        ];
-
-        return monthNames[formattedDate.getMonth()];
+    if (courseError || !course) {
+        return <div>Error fetching course information.</div>;
     }
 
-    function getDay(date: Date) {
-        const formattedDate = new Date(date);
-        return formattedDate.getDate();
+    // Fetch assignments
+    const { data: assignments, error: assignmentError } = await supabase
+        .from('assignments_list')
+        .select('assignment_id, assignment_name, due_date, block_count')
+        .eq('course_id', course_id)
+        .eq('open', true);
+
+    if (assignmentError || !assignments || assignments.length === 0) {
+        return <div>No assignments found for this course.</div>;
     }
 
-    function getYear(date: Date) {
-        const formattedDate = new Date(date);
-        return formattedDate.getFullYear();
+    // Fetch submissions
+    const { data: submissions, error: submissionError } = await supabase
+        .from('student_submissions')
+        .select('submission_id, assignment_id, blocks_complete, finished');
+
+    if (submissionError || !submissions || submissions.length === 0) {
+        return <div>No submissions found for this course.</div>;
     }
+
+    // Map assignments to their corresponding submissions
+    const mappedAssignments = assignments.map((assignment) => {
+        const correspondingSubmission = submissions.find(
+            (submission) => submission.assignment_id === assignment.assignment_id
+        );
+
+        return { ...assignment, submission: correspondingSubmission };
+    });
 
     // Assignment Completion Helper Function
     function getPercentage(question_count: number, questions_complete: number) {
@@ -59,55 +74,27 @@ export default async function StudentDashboard({ params }: { params: CourseParam
         return completion.toFixed(2);
     }
 
-    if (!assignments || assignments.length === 0
-        || !submissions || submissions.length === 0
-        || !courses || courses.length === 0) {
-        return (
-            <div>
-                <p> hi - theres nothing here </p>
-            </div>
-        )
-    }
-    else {
-
-        //----------------------------------Logic Below is to cover for assignments w/o submissions-----------------------------------------------------
-        //---------------Our program should create a new submission for everyone in the course once as assignment is added------------------------------
-
-        // Create two lists with students assignments that they've created submissions for
-        // var countList = new Array();
-        // var completionList = new Array();
-        // for (let i = 0; i < assignments.length; i++){
-        //     let assignmentId = assignments[i].assignment_id;
-        //     let insertCount = 0;
-        //     for(let j = 0; j < submissions.length; j++){
-        //         if(submissions[j].assignment_id = assignmentId){
-        //             completionList.push(submissions[j].questions_complete);
-        //             insertCount++;
-        //             break;
-        //         }
-        //     }
-        //     if(insertCount === 1){
-        //         countList.push(assignments[i].questions_count);
-        //     }
-
-        // }
-        return (
-            <div>
-                <h1> {courses[0].course_name} </h1>
-                <ul>
-                    {assignments.map((assignment, index) => (
-                        <li key={assignment.id || index}>
-                            {assignment.assignment_name}
-                            <br />
-                            Completion: {getPercentage(assignment.question_count, submissions[index].questions_complete)}%
-                            <br />
-                            Due: {getMonth(assignment.due_date)} {getDay(assignment.due_date)}, {getYear(assignment.due_date)}
-                        </li>
-                    ))}
-                </ul>
-            </div>
-        );
-    }
-
-
+    return (
+        <div>
+            <h1>{course.course_name}</h1>
+            <ul>
+                {mappedAssignments.map((assignment) => (
+                    <li key={assignment.assignment_id}>
+                        <Link href ={`../question-page/${assignment.assignment_id}`}>
+                            <h2>{assignment.assignment_name}</h2>
+                        </Link>
+                        <p>Due Date: {new Date(assignment.due_date).toLocaleDateString()}</p>
+                        {assignment.submission ? (
+                            <>
+                                <p>Completion: {getPercentage(assignment.block_count, assignment.submission.blocks_complete)}</p>
+                                <p>Status: {assignment.submission.finished ? 'Finished' : 'In Progress'}</p>
+                            </>
+                        ) : (
+                            <p>No submission found</p>
+                        )}
+                    </li>
+                ))}
+            </ul>
+        </div>
+    );
 }
