@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
-import { useRouter } from 'next/navigation';
+import { redirect, useRouter } from 'next/navigation';
 
 type AssignmentName = {
     assignment_name: string;
@@ -24,17 +24,18 @@ interface ClientComponentProps {
     assignmentId: string;
     assignmentName: AssignmentName;
     blocks: Block[];
-    submissionId: number;
     studentId: string;
 }
 
-const ClientComponent: React.FC<ClientComponentProps> = ({ assignmentId, assignmentName, blocks, studentId, submissionId }) => {
+const ClientComponent: React.FC<ClientComponentProps> = ({ assignmentId, assignmentName, blocks, studentId }) => {
 
     const router = useRouter();
 
+    const [initialized, setInitialized] = useState(false);
     const [currentBlock, setCurrentBlock] = useState(0);
     const [version, setVersion] = useState(0);
     const [questions, setQuestions] = useState<Question[]>([]);
+    const [submissionId, setSubId] = useState(0);
     const [userAnswers, setUserAnswers] = useState(
         questions.map(() => ({ answer: '', correct: false }))
     );
@@ -46,21 +47,69 @@ const ClientComponent: React.FC<ClientComponentProps> = ({ assignmentId, assignm
         initializeState();
     });
 
-    async function initializeState() {
-        const { data: stateData } = await supabase
+    async function getSubmission() {
+        const { data: stateData, error: stateError } = await supabase
             .from('student_submissions')
-            .select('current_block, current_version')
+            .select('submission_id, current_block, current_version, finished')
             .eq('student_id', studentId)
             .eq('assignment_id', assignmentId)
             .single();
 
+        if (stateError || !stateData) {
+            console.log('Creating Submission Record...');
+
+            const submitData = {
+                student_id: studentId,
+                assignment_id: assignmentId,
+            };
+
+            const { error: newSubmitError } = await supabase
+                .from('student_submissions')
+                .insert([submitData]);
+
+            if (newSubmitError) {
+                console.error("Problem creating new submission record:", newSubmitError.message);
+                return null; // Handle the error gracefully
+            }
+
+            // Fetch the newly created row
+            const { data: newStateData, error: fetchError } = await supabase
+                .from('student_submissions')
+                .select('submission_id, current_block, current_version, finished')
+                .eq('student_id', studentId)
+                .eq('assignment_id', assignmentId)
+                .single();
+
+            if (fetchError || !newStateData) {
+                console.error("Problem fetching newly created submission record:", fetchError?.message);
+                return null;
+            }
+
+            return newStateData;
+        }
+
+        return stateData;
+
+    }
+
+    async function initializeState() {
+
+        const stateData = await getSubmission();
+
         if (!stateData) {
-            console.error('State Data not found.');
+            console.error("Problem getting submission information");
             return;
         }
 
-        setCurrentBlock(stateData.current_block);
-        setVersion(stateData.current_version);
+        if (stateData.finished) {
+            router.push(`/assignment-grade-view/${assignmentId}`);
+        }
+        else {
+            setSubId(stateData.submission_id)
+            setCurrentBlock(stateData.current_block);
+            setVersion(stateData.current_version);
+            setInitialized(true);
+        }
     }
 
     async function fetchQuestions() {
@@ -214,6 +263,15 @@ const ClientComponent: React.FC<ClientComponentProps> = ({ assignmentId, assignm
 
         if (currentBlock + 1 >= blocks.length) {
             alert("You have completed all blocks!");
+
+            const { error: completionUpdateError } = await supabase
+                .from('student_submissions')
+                .update({ finished: true })
+                .eq('submission_id', submissionId);
+
+            if(completionUpdateError){
+                console.error("Error Updating Completion")
+            }
             router.push(`/assignment-grade-view/${assignmentId}`);
         }
 
@@ -257,7 +315,7 @@ const ClientComponent: React.FC<ClientComponentProps> = ({ assignmentId, assignm
 
             const { } = await supabase
                 .from('student_submissions')
-                .update({ current_version: savedVersion.current_version + 1})
+                .update({ current_version: savedVersion.current_version + 1 })
                 .eq('submission_id', submissionId);
 
             setVersion(version + 1);
@@ -278,6 +336,9 @@ const ClientComponent: React.FC<ClientComponentProps> = ({ assignmentId, assignm
         fetchQuestions();
     }, [currentBlock]);
 
+    if (!initialized) {
+        return <div> Loading... </div>
+    }
     return (
         <div>
             <h1>{assignmentName.assignment_name}</h1>

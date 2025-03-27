@@ -33,23 +33,11 @@ export default async function QuestionPage({ params }: { params: AssignmentParam
 
     // Fetch question blocks
     const { data: blocks } = await supabase.from("question_blocks").select().eq('assignment_id', assignment_id);
+
+    console.log(blocks);
     if (!blocks || blocks.length < 1) {
         return <div> Error Retrieving Blocks </div>;
     }
-
-    const { data: submissionData } = await supabase
-        .from("student_submissions")
-        .select('submission_id')
-        .eq('assignment_id', assignment_id)
-        .eq('student_id', studentId.student_id)
-        .single();
-
-    if (!submissionData) {
-        return <div> Error Retrieving Submissions </div>;
-    }
-
-    const submission_id: number = submissionData.submission_id;
-
 
     // Pass data to client component
     return (
@@ -57,7 +45,6 @@ export default async function QuestionPage({ params }: { params: AssignmentParam
             assignmentId={assignment_id}
             assignmentName={assignmentName}
             blocks={blocks}
-            submissionId={submission_id}
             studentId={studentId.student_id}
         />
     );
