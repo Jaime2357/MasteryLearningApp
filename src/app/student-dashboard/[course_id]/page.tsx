@@ -1,23 +1,23 @@
 import { createClient } from '@/utils/supabase/server';
 import Link from 'next/link';
 
-type Assignment = {
-    assignment_id: number;
-    assignment_name: string;
-    due_date: string;
-    question_count: number;
-};
+// type Assignment = {
+//     assignment_id: number;
+//     assignment_name: string;
+//     due_date: string;
+//     question_count: number;
+// };
 
-type Submission = {
-    submission_id: number;
-    assignment_id: number;
-    blocks_complete: number;
-    finished: boolean;
-};
+// type Submission = {
+//     submission_id: number;
+//     assignment_id: number;
+//     blocks_complete: number;
+//     finished: boolean;
+// };
 
-type Course = {
-    course_name: string;
-};
+// type Course = {
+//     course_name: string;
+// };
 
 type CourseParams = { course_id: string };
 
@@ -76,11 +76,12 @@ export default async function StudentDashboard({ params }: { params: CourseParam
 
     return (
         <div>
+            <Link href={`/course-selection`}> Course Selection </Link>
             <h1>{course.course_name}</h1>
             <ul>
                 {mappedAssignments.map((assignment) => (
                     <li key={assignment.assignment_id}>
-                        <Link href ={`../question-page/${assignment.assignment_id}`}>
+                        <Link href ={`../question-page/${course_id}/${assignment.assignment_id}`}>
                             <h2>{assignment.assignment_name}</h2>
                         </Link>
                         <p>Due Date: {new Date(assignment.due_date).toLocaleDateString()}</p>

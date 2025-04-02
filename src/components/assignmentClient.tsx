@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
-import { redirect, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 type AssignmentName = {
     assignment_name: string;
@@ -13,6 +14,7 @@ type Question = {
     question_body: string[];
     points: number;
     solutions: string[];
+    feedback: string[];
 };
 
 type Block = {
@@ -25,9 +27,10 @@ interface ClientComponentProps {
     assignmentName: AssignmentName;
     blocks: Block[];
     studentId: string;
+    courseId: string;
 }
 
-const ClientComponent: React.FC<ClientComponentProps> = ({ assignmentId, assignmentName, blocks, studentId }) => {
+const ClientComponent: React.FC<ClientComponentProps> = ({ assignmentId, assignmentName, blocks, studentId, courseId }) => {
 
     const router = useRouter();
 
@@ -36,6 +39,9 @@ const ClientComponent: React.FC<ClientComponentProps> = ({ assignmentId, assignm
     const [version, setVersion] = useState(0);
     const [questions, setQuestions] = useState<Question[]>([]);
     const [submissionId, setSubId] = useState(0);
+    const [showFeedback, setShowFeedback] = useState(false);
+    const [percentageCorrect, setPercentageCorrect] = useState(0);
+    const threshold = 100; //Temporary
     const [userAnswers, setUserAnswers] = useState(
         questions.map(() => ({ answer: '', correct: false }))
     );
@@ -45,7 +51,8 @@ const ClientComponent: React.FC<ClientComponentProps> = ({ assignmentId, assignm
 
     useEffect(() => {
         initializeState();
-    });
+    }, []);
+
 
     async function getSubmission() {
         const { data: stateData, error: stateError } = await supabase
@@ -102,7 +109,7 @@ const ClientComponent: React.FC<ClientComponentProps> = ({ assignmentId, assignm
         }
 
         if (stateData.finished) {
-            router.push(`/assignment-grade-view/${assignmentId}`);
+            router.push(`/assignment-grade-view/${courseId}/${assignmentId}`);
         }
         else {
             setSubId(stateData.submission_id)
@@ -113,30 +120,34 @@ const ClientComponent: React.FC<ClientComponentProps> = ({ assignmentId, assignm
     }
 
     async function fetchQuestions() {
-        if (!blocks[currentBlock]?.question_ids) {
-            console.error('No question IDs found for current block.');
-            return;
+
+        if (initialized) {
+            if (!blocks[currentBlock]?.question_ids) {
+                console.error('No question IDs found for current block.');
+                return;
+            }
+
+            console.log(currentBlock, "/", blocks[currentBlock].question_ids)
+            const { data: fetchedQuestions, error } = await supabase
+                .from("questions")
+                .select()
+                .in('question_id', blocks[currentBlock].question_ids);
+
+
+            if (error) {
+                console.error('Error fetching questions:', error.message);
+                return;
+            }
+
+            if (!fetchedQuestions || fetchedQuestions.length === 0) {
+                console.warn('No questions found for current block.');
+                return;
+            }
+
+            setQuestions(fetchedQuestions as Question[]);
+            setUserAnswers(fetchedQuestions.map(() => ({ answer: '', correct: false })));
         }
 
-        console.log(currentBlock, "/", blocks)
-        const { data: fetchedQuestions, error } = await supabase
-            .from("questions")
-            .select()
-            .in('question_id', blocks[currentBlock].question_ids);
-
-
-        if (error) {
-            console.error('Error fetching questions:', error.message);
-            return;
-        }
-
-        if (!fetchedQuestions || fetchedQuestions.length === 0) {
-            console.warn('No questions found for current block.');
-            return;
-        }
-
-        setQuestions(fetchedQuestions as Question[]);
-        setUserAnswers(fetchedQuestions.map(() => ({ answer: '', correct: false })));
     }
 
     async function gradeBlockAndSubmit(
@@ -148,9 +159,13 @@ const ClientComponent: React.FC<ClientComponentProps> = ({ assignmentId, assignm
         questions: Question[]
     ): Promise<void> {
         // Grade each answer
-        const gradedAnswers = submittedAnswers.map((answer, index) => {
+        let gradedAnswers = submittedAnswers.map((answer, index) => {
             return answer === answerKey[index] ? questions[index].points : 0;
         });
+
+        if (!gradedAnswers) {
+            gradedAnswers = [0];
+        }
 
         // Calculate total points earned
         const totalPointsEarned = gradedAnswers.reduce<number>(
@@ -166,7 +181,8 @@ const ClientComponent: React.FC<ClientComponentProps> = ({ assignmentId, assignm
         );
 
         // Calculate percentage correct
-        const percentageCorrect = (totalPointsEarned / totalPossiblePoints) * 100;
+        const percentCalc = (totalPointsEarned / totalPossiblePoints) * 100
+        setPercentageCorrect(percentCalc);
 
         // Prepare data for insertion into Supabase
         const submissionData = {
@@ -189,14 +205,14 @@ const ClientComponent: React.FC<ClientComponentProps> = ({ assignmentId, assignm
 
         const { } = await supabase
             .from('block_submissions')
-            .update({ score: percentageCorrect })
+            .update({ score: percentCalc })
             .eq('block_id', blocks[currentBlock].block_id)
             .eq('student_id', studentId)
             .eq('block_version', version);
 
-        alert(`You scored ${totalPointsEarned}/${totalPossiblePoints} points (${percentageCorrect.toFixed(2)}%)!`);
+        alert(`You scored ${totalPointsEarned}/${totalPossiblePoints} points (${percentCalc.toFixed(2)}%)!`);
 
-        advance(percentageCorrect, 100);
+        setShowFeedback(true)
     }
 
     async function nextBlock() {
@@ -269,10 +285,10 @@ const ClientComponent: React.FC<ClientComponentProps> = ({ assignmentId, assignm
                 .update({ finished: true })
                 .eq('submission_id', submissionId);
 
-            if(completionUpdateError){
+            if (completionUpdateError) {
                 console.error("Error Updating Completion")
             }
-            router.push(`/assignment-grade-view/${assignmentId}`);
+            router.push(`/assignment-grade-view/${courseId}/${assignmentId}`);
         }
 
         const { data: savedBlock } = await supabase
@@ -324,6 +340,8 @@ const ClientComponent: React.FC<ClientComponentProps> = ({ assignmentId, assignm
 
     function advance(score: number, threshold: number) {
 
+        setShowFeedback(false);
+
         if (score < threshold) {
             nextVersion();
         }
@@ -341,6 +359,9 @@ const ClientComponent: React.FC<ClientComponentProps> = ({ assignmentId, assignm
     }
     return (
         <div>
+            <div>
+                {(!showFeedback) && <Link href={`/student-dashboard/${courseId}`}> Back </Link>}
+            </div>
             <h1>{assignmentName.assignment_name}</h1>
             <ul>
                 <h1> Question Set {currentBlock + 1} </h1>
@@ -362,27 +383,47 @@ const ClientComponent: React.FC<ClientComponentProps> = ({ assignmentId, assignm
                                 )
                             }
                         />
+                        <br />
+                        {(showFeedback) &&
+                            <div>
+                                <p> Correct Answer: {question.solutions[version]}</p>
+                                <p> Feedback: {question.feedback[version]}</p>
+                            </div>
+                        }
                     </li>
                 ))}
             </ul>
 
-            <button
-                onClick={() => {
-                    const submittedAnswers = userAnswers.map(answer => answer.answer);
-                    const answerKey = questions.map(question => question.solutions[version]);
+            {(!showFeedback) &&
+                <button
+                    onClick={() => {
+                        const submittedAnswers = userAnswers.map(answer => answer.answer);
+                        const answerKey = questions.map(question => question.solutions[version]);
 
-                    gradeBlockAndSubmit(
-                        submittedAnswers,
-                        answerKey,
-                        blocks[currentBlock].block_id,
-                        version,
-                        studentId, // Replace with actual student ID from props or state
-                        questions // Pass questions array to calculate points
-                    );
-                }}
-            >
-                Submit Answers
-            </button>
+                        gradeBlockAndSubmit(
+                            submittedAnswers,
+                            answerKey,
+                            blocks[currentBlock].block_id,
+                            version,
+                            studentId, // Replace with actual student ID from props or state
+                            questions // Pass questions array to calculate points
+                        );
+                    }}
+                >
+                    Submit Answers
+                </button>
+
+            }
+            {(showFeedback && (percentageCorrect >= threshold)) &&
+                <button onClick={() => { advance(percentageCorrect, threshold); }}>
+                    Next
+                </button>
+            }
+            {(showFeedback && (percentageCorrect < threshold)) &&
+                <button onClick={() => { advance(percentageCorrect, threshold); }}>
+                    Retry
+                </button>
+            }
 
         </div>
     );
