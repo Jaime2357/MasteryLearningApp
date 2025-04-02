@@ -2,7 +2,7 @@ import { createClient } from '@/utils/supabase/server';
 import { redirect } from 'next/navigation';
 import ClientComponent from '@/components/assignmentClient';
 
-type AssignmentParams = { assignment_id: string };
+type AssignmentParams = {course_id: string, assignment_id: string};
 
 export default async function QuestionPage({ params }: { params: AssignmentParams }) {
     const supabase = await createClient();
@@ -23,7 +23,7 @@ export default async function QuestionPage({ params }: { params: AssignmentParam
         );
     }
 
-    const { assignment_id } = await params;
+    const {course_id, assignment_id} = await params;
 
     // Fetch assignment name
     const { data: assignmentName } = await supabase.from("assignments_list").select('assignment_name').eq('assignment_id', assignment_id).single();
@@ -34,7 +34,6 @@ export default async function QuestionPage({ params }: { params: AssignmentParam
     // Fetch question blocks
     const { data: blocks } = await supabase.from("question_blocks").select().eq('assignment_id', assignment_id);
 
-    console.log(blocks);
     if (!blocks || blocks.length < 1) {
         return <div> Error Retrieving Blocks </div>;
     }
@@ -46,6 +45,7 @@ export default async function QuestionPage({ params }: { params: AssignmentParam
             assignmentName={assignmentName}
             blocks={blocks}
             studentId={studentId.student_id}
+            courseId={course_id}
         />
     );
 }
