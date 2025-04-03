@@ -1,15 +1,7 @@
 import { createClient } from '@/utils/supabase/server';
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
 
-type AssignmentParams = {course_id: string, assignment_id: string};
-
-// interface Question {
-//   question_id: string;
-//   question_body: string[]; // Array of question texts
-//   points: number;
-//   solutions: string[]; // Array of correct answers
-// }
+type AssignmentParams = { course_id: string, submission_id: number };
 
 interface SubmittedQuestion {
     questionText: string;
@@ -24,13 +16,6 @@ interface Version {
     questions: SubmittedQuestion[];
 }
 
-// interface BlockSubmission {
-//   block_id: string;
-//   block_version: number;
-//   answers: string[]; // Array of submitted answers
-//   grade: number[]; // Array of grades for each question
-// }
-
 interface Block {
     blockNumber: number;
     versions: Version[];
@@ -40,56 +25,39 @@ interface StructuredData {
     blocks: Block[];
 }
 
-// interface SubmissionData {
-//   blocks_complete: boolean[];
-//   block_scores: number[];
-// }
+export default async function SubmissionReviewPage({ params }: { params: AssignmentParams }) {
 
-// interface AssignmentData {
-//   assignment_name: string;
-//   due_date: string;
-//   total_points: number;
-// }
-
-export default async function AssignmentResultPage({ params }: { params: AssignmentParams }) {
+    // Create Supabase connection
     const supabase = await createClient();
-
-    // Authenticate user
-    const { data: userData, error: authError } = await supabase.auth.getUser();
-    if (authError || !userData?.user) {
-        redirect('/login');
-        return null; // Prevent further execution
-    }
-
-    // Get student ID
-    const { data: studentId } = await supabase.from('students').select('student_id').eq('system_id', userData.user.id).single();
-    if (!studentId) {
-        return (
-            <div>
-                <p> UH OH </p>
-            </div>
-        );
-    }
-
-    const { course_id, assignment_id } = await params;
+    const { course_id, submission_id } = await params;
 
     // Fetch general submission data
     const { data: submissionData } = await supabase
         .from("student_submissions")
-        .select("blocks_complete, block_scores")
-        .eq('assignment_id', assignment_id)
-        .eq('student_id', studentId.student_id)
+        .select("student_id, assignment_id, blocks_complete, block_scores")
+        .eq('submission_id', submission_id)
         .single();
 
     if (!submissionData) {
-        return <div> Error Retrieving Submission Data </div>;
+        return <div> Error Retrieving General Submission Data </div>;
+    }
+
+    // Fetch student name
+    const { data: student } = await supabase
+        .from("students")
+        .select("first_name, last_name")
+        .eq('student_id', submissionData.student_id)
+        .single();
+
+    if (!student) {
+        return <div> Error Retrieving Student Data </div>;
     }
 
     // Fetch general assignment data
     const { data: assignmentData } = await supabase
         .from("assignments_list")
         .select('assignment_name, due_date, total_points')
-        .eq('assignment_id', assignment_id)
+        .eq('assignment_id', submissionData.assignment_id)
         .single();
 
     if (!assignmentData) {
@@ -100,13 +68,12 @@ export default async function AssignmentResultPage({ params }: { params: Assignm
     const { data: blocks } = await supabase
         .from("question_blocks")
         .select('block_id, block_number, question_ids')
-        .eq('assignment_id', assignment_id);
+        .eq('assignment_id', submissionData.assignment_id);
 
     if (!blocks) {
         return <div> Error Retrieving Question Blocks </div>;
     }
 
-    const blockIds = blocks.map(block => block.block_id);
     const questionIds = blocks.reduce((acc, block) => acc.concat(block.question_ids), []);
 
     // Fetch questions
@@ -123,7 +90,7 @@ export default async function AssignmentResultPage({ params }: { params: Assignm
     const { data: blockSubmissions } = await supabase
         .from("block_submissions")
         .select('block_id, block_version, answers, grade')
-        .in('block_id', blockIds);
+        .eq('submission_id', submission_id);
 
     if (!blockSubmissions) {
         return <div> Error Retrieving Block Submission Data </div>;
@@ -161,7 +128,11 @@ export default async function AssignmentResultPage({ params }: { params: Assignm
         }),
     };
 
-    const totalScore = parseFloat(((submissionData.block_scores.reduce((acc: number, curr: number) => acc + curr, 0)) / assignmentData.total_points * 100).toFixed(2));
+    let blockScores = submissionData.block_scores;
+    if (!blockScores) {
+        blockScores = [0];
+    }
+    const totalScore = parseFloat(((blockScores.reduce((acc: number, curr: number) => acc + curr, 0)) / assignmentData.total_points * 100).toFixed(2));
 
     const currentDate: Date = new Date();
     const dueDate: Date = new Date(assignmentData.due_date);
@@ -170,13 +141,13 @@ export default async function AssignmentResultPage({ params }: { params: Assignm
 
     const daysLeft: number = Math.floor(milliDif / (1000 * 60 * 60 * 24))
 
-
     return (
         <div>
             <div>
-            <Link href={`/student-dashboard/${course_id}`}> Back </Link>
+                <Link href={`/assignment-grade-list/${course_id}/${submissionData.assignment_id}`}> Back </Link>
             </div>
-            <h2>{assignmentData.assignment_name}</h2>
+            <h1>{assignmentData.assignment_name}</h1>
+            <h2> Student: {student.first_name} {student.last_name}</h2>
             <h3> Grade: {totalScore}% </h3>
             <p>Due Date: {assignmentData.due_date}</p>
 
@@ -190,7 +161,13 @@ export default async function AssignmentResultPage({ params }: { params: Assignm
 
             {structuredData.blocks.map((block) => (
                 <div key={block.blockNumber}>
+
                     <h3>Question Block {block.blockNumber}:</h3>
+
+                    {(!block.versions[0]) && (
+                        <p>No submissions for this block...</p>
+                    )}
+
                     {block.versions.map((version) => (
                         <div key={version.version}>
                             <h4>Version {version.version}:</h4>
@@ -199,7 +176,7 @@ export default async function AssignmentResultPage({ params }: { params: Assignm
                                     <p>Question {index + 1}: {question.questionText}</p>
                                     <p>- Submitted Answer: {question.submittedAnswer}</p>
                                     <p>- Correct Answer: {question.correctAnswer}</p>
-                                    <p>-- Grade/Points Possible: {question.grade ?? "0"}/{question.pointsPossible}</p>
+                                    <p>-- Grade: {question.grade ?? "0"}/{question.pointsPossible}</p>
                                 </div>
                             ))}
                         </div>
