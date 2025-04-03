@@ -3,13 +3,6 @@ import Link from 'next/link';
 
 type AssignmentParams = { course_id: string, submission_id: number };
 
-// interface Question {
-//   question_id: string;
-//   question_body: string[]; // Array of question texts
-//   points: number;
-//   solutions: string[]; // Array of correct answers
-// }
-
 interface SubmittedQuestion {
     questionText: string;
     submittedAnswer: string | null;
@@ -23,13 +16,6 @@ interface Version {
     questions: SubmittedQuestion[];
 }
 
-// interface BlockSubmission {
-//   block_id: string;
-//   block_version: number;
-//   answers: string[]; // Array of submitted answers
-//   grade: number[]; // Array of grades for each question
-// }
-
 interface Block {
     blockNumber: number;
     versions: Version[];
@@ -38,17 +24,6 @@ interface Block {
 interface StructuredData {
     blocks: Block[];
 }
-
-// interface SubmissionData {
-//   blocks_complete: boolean[];
-//   block_scores: number[];
-// }
-
-// interface AssignmentData {
-//   assignment_name: string;
-//   due_date: string;
-//   total_points: number;
-// }
 
 export default async function SubmissionReviewPage({ params }: { params: AssignmentParams }) {
 
