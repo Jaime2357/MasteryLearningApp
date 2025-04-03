@@ -108,14 +108,15 @@ export default async function AssignmentGradeList({ params }: { params: CoursePa
                 <ul>
                     {mappedSubmissions.map((submission) => (
                         <li key={submission.student_id}>
-                            {/* <Link href={`../question-page/${course_id}/${assignment.assignment_id}`}> */}
+                            <Link href={`/student-submission-overview/${course_id}/${submission.submission?.submission_id}`}>
                             <h2>{submission.first_name} {submission.last_name}</h2>
-                            {/* </Link> */}
+                            </Link>
                             {submission.submission ? (
                                 <>
                                     <p>Completion: {getPercentage(assignment.block_count, submission.submission.blocks_complete)}</p>
                                     <p>Total Score: {getTotalScore(submission.submission, assignment)}</p>
-                                    <p>Status: {submission.submission.finished ? 'Finished' : 'In Progress'}</p>
+                                    <p>Status: {submission.submission.finished ? 'Finished' 
+                                    : `In Progress (${submission.submission.blocks_complete}/${assignment.block_count} Blocks)`}</p>
                                 </>
                             ) : (
                                 <p> No submission found for this student</p>
