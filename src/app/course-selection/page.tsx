@@ -114,6 +114,7 @@ export default async function CourseSelection() {
                             </li>
                         ))}
                     </ul>
+                    <p> Create Course </p>
                 </div>
             }
             {(!instructor) &&

@@ -1,5 +1,6 @@
 import { createClient } from '@/utils/supabase/server';
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 
 type CourseParams = { course_id: string };
 
@@ -7,6 +8,12 @@ export default async function InstructorDashboard({ params }: { params: CoursePa
     
     const supabase = await createClient(); // Create Supabase Client
     const { course_id } = await params; // Extract Course ID
+
+     const { data: userData, error: authError } = await supabase.auth.getUser();
+        if (authError || !userData?.user) {
+            redirect('/login');
+            return null; // Prevent further execution
+        }
 
     // Fetch course information
     const { data: course, error: courseError } = await supabase
@@ -23,8 +30,7 @@ export default async function InstructorDashboard({ params }: { params: CoursePa
     const { data: assignments, error: assignmentError } = await supabase
         .from('assignments_list')
         .select('assignment_id, assignment_name, due_date, assigned, open')
-        .eq('course_id', course_id)
-        .eq('open', true);
+        .eq('course_id', course_id);
 
     if (assignmentError || !assignments || assignments.length === 0) {
         return <div>No assignments found for this course.</div>;
@@ -51,6 +57,8 @@ export default async function InstructorDashboard({ params }: { params: CoursePa
                     </li>
                 ))}
             </ul>
+
+            <Link href={`/assignment-creator/${course_id}`}> Create Assignment </Link>
         </div>
     );
 }

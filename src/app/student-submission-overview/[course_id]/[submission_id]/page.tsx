@@ -1,5 +1,6 @@
 import { createClient } from '@/utils/supabase/server';
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 
 type AssignmentParams = { course_id: string, submission_id: number };
 
@@ -30,6 +31,12 @@ export default async function SubmissionReviewPage({ params }: { params: Assignm
     // Create Supabase connection
     const supabase = await createClient();
     const { course_id, submission_id } = await params;
+
+    const { data: userData, error: authError } = await supabase.auth.getUser();
+    if (authError || !userData?.user) {
+        redirect('/login');
+        return null; // Prevent further execution
+    }
 
     // Fetch general submission data
     const { data: submissionData } = await supabase
