@@ -30,7 +30,7 @@ interface ClientComponentProps {
     courseId: string;
 }
 
-const ClientComponent: React.FC<ClientComponentProps> = ({ assignmentId, assignmentName, blocks, studentId, courseId }) => {
+const AssignmentComponent: React.FC<ClientComponentProps> = ({ assignmentId, assignmentName, blocks, studentId, courseId }) => {
 
     const router = useRouter();
 
@@ -429,4 +429,4 @@ const ClientComponent: React.FC<ClientComponentProps> = ({ assignmentId, assignm
     );
 };
 
-export default ClientComponent;
+export default AssignmentComponent;

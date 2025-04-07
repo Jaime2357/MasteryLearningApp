@@ -1,5 +1,6 @@
 import { createClient } from '@/utils/supabase/server';
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 
 // type Assignment = {
 //     assignment_id: number;
@@ -23,6 +24,12 @@ type CourseParams = { course_id: string };
 
 export default async function StudentDashboard({ params }: { params: CourseParams }) {
     const supabase = await createClient();
+
+    const { data: userData, error: authError } = await supabase.auth.getUser();
+    if (authError || !userData?.user) {
+        redirect('/login');
+        return null; // Prevent further execution
+    }
 
     const { course_id } = await params;
 
@@ -81,7 +88,7 @@ export default async function StudentDashboard({ params }: { params: CourseParam
             <ul>
                 {mappedAssignments.map((assignment) => (
                     <li key={assignment.assignment_id}>
-                        <Link href ={`../question-page/${course_id}/${assignment.assignment_id}`}>
+                        <Link href={`../question-page/${course_id}/${assignment.assignment_id}`}>
                             <h2>{assignment.assignment_name}</h2>
                         </Link>
                         <p>Due Date: {new Date(assignment.due_date).toLocaleDateString()}</p>

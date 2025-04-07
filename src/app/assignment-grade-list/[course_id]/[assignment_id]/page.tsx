@@ -1,5 +1,6 @@
 import { createClient } from '@/utils/supabase/server';
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 
 type CourseParams = { course_id: string, assignment_id: number };
 
@@ -26,6 +27,12 @@ export default async function AssignmentGradeList({ params }: { params: CoursePa
 
     const supabase = await createClient(); // Create Supabase Client
     const { course_id, assignment_id } = await params; // Extract Course ID and Assignment ID
+
+    const { data: userData, error: authError } = await supabase.auth.getUser();
+    if (authError || !userData?.user) {
+        redirect('/login');
+        return null; // Prevent further execution
+    }
 
     // Fetch student submissions for assignment
     const { data: assignment, error: assignmentError } = await supabase
@@ -57,8 +64,8 @@ export default async function AssignmentGradeList({ params }: { params: CoursePa
     if (enrollmentsError) {
         return <div> No student enrollments found for this course. </div>;
     }
-    console.log( "Assignment:", assignment)
-    console.log( "Enrollment:", enrollments)
+    console.log("Assignment:", assignment)
+    console.log("Enrollment:", enrollments)
 
     const student_ids = enrollments.map(enrollment => enrollment.student_id);
 
@@ -89,7 +96,7 @@ export default async function AssignmentGradeList({ params }: { params: CoursePa
 
     // Helper Function to find each student's total score
     function getTotalScore(submission: Submissions, assignment: Assignment) {
-        if(!submission.block_scores){
+        if (!submission.block_scores) {
             return 0;
         }
         return parseFloat(((submission.block_scores.reduce((acc: number, curr: number) => acc + curr, 0)) / assignment.total_points * 100).toFixed(2));
@@ -99,8 +106,8 @@ export default async function AssignmentGradeList({ params }: { params: CoursePa
     return (
         <div>
             <div>
-            <Link href={`/instructor-dashboard/${course_id}`}> Instructor Dashboard </Link>
-            <h1>Student Submissions</h1>
+                <Link href={`/instructor-dashboard/${course_id}`}> Instructor Dashboard </Link>
+                <h1>Student Submissions</h1>
                 <h2> {assignment.assignment_name}</h2>
                 <p> {assignment.due_date}</p>
             </div>
@@ -109,14 +116,14 @@ export default async function AssignmentGradeList({ params }: { params: CoursePa
                     {mappedSubmissions.map((submission) => (
                         <li key={submission.student_id}>
                             <Link href={`/student-submission-overview/${course_id}/${submission.submission?.submission_id}`}>
-                            <h2>{submission.first_name} {submission.last_name}</h2>
+                                <h2>{submission.first_name} {submission.last_name}</h2>
                             </Link>
                             {submission.submission ? (
                                 <>
                                     <p>Completion: {getPercentage(assignment.block_count, submission.submission.blocks_complete)}</p>
                                     <p>Total Score: {getTotalScore(submission.submission, assignment)}</p>
-                                    <p>Status: {submission.submission.finished ? 'Finished' 
-                                    : `In Progress (${submission.submission.blocks_complete}/${assignment.block_count} Blocks)`}</p>
+                                    <p>Status: {submission.submission.finished ? 'Finished'
+                                        : `In Progress (${submission.submission.blocks_complete}/${assignment.block_count} Blocks)`}</p>
                                 </>
                             ) : (
                                 <p> No submission found for this student</p>
