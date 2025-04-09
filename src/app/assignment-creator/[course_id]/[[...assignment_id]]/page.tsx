@@ -2,7 +2,7 @@ import { createClient } from '@/utils/supabase/server';
 import { redirect } from 'next/navigation';
 import AssignmentCreatorComponent from './components/assignmentCreatorClient';
 
-type AssignmentParams = { course_id: string };
+type AssignmentParams = { course_id: string, assignment_id: string | null };
 
 export default async function AssignmentCreator({ params }: { params: AssignmentParams }) {
     const supabase = await createClient();
@@ -24,13 +24,14 @@ export default async function AssignmentCreator({ params }: { params: Assignment
         return
     }
 
-    const {course_id} = await params;
+    const {course_id, assignment_id} = await params;
 
     // Pass data to client component
     return (
         <AssignmentCreatorComponent
             instructor_id={instructor.instructor_id}
             course_id={course_id}
+            assignment_id={assignment_id}
         />
     );
 }

@@ -52,6 +52,8 @@ export default async function InstructorDashboard({ params }: { params: CoursePa
                         {(!assignment.assigned) && <p> Not Assigned </p>}
                         {(assignment.assigned) && <p> Open </p>}
                         {(!assignment.assigned) && <p> Closed </p>}
+                        <Link href={`/assignment-preview/${course_id}/${assignment.assignment_id}`}> View Assignment </Link>
+                        <br></br>
                         <Link href={`/assignment-grade-list/${course_id}/${assignment.assignment_id}`}> View Student Grades </Link>
                         {(assignment.assigned) && <p> Edit Assignment </p>}
                     </li>
