@@ -1,6 +1,6 @@
 import { createClient } from '@/utils/supabase/server';
 import { redirect } from 'next/navigation';
-import AssignmentComponent from '@/components/assignmentClient';
+import AssignmentComponent from './components/assignmentClient';
 
 type AssignmentParams = {course_id: string, assignment_id: string};
 

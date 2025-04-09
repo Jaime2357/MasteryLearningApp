@@ -17,9 +17,10 @@ type Question = {
 interface ClientComponentProps {
     instructor_id: string;
     course_id: string;
+    assignment_id: string | null;
 }
 
-const AssignmentCreatorComponent: React.FC<ClientComponentProps> = ({ instructor_id, course_id }) => {
+const AssignmentCreatorComponent: React.FC<ClientComponentProps> = ({ instructor_id, course_id, assignment_id }) => {
 
     // Use the createClient function to initialize a Supabase client
     const supabase = createClient();
@@ -29,12 +30,13 @@ const AssignmentCreatorComponent: React.FC<ClientComponentProps> = ({ instructor
         getQuestions();
     })
 
-    const [assignmentId, setAssignmentId] = useState(null);
+    const [assignmentId, setAssignmentId] = useState(assignment_id);
 
     // Variables for general assignment data
     const [assignmentName, setAssignmentName] = useState('');
     const [dueDate, setDueDate] = useState(new Date());
-    const [totalPoints, setTotalPoints] = useState(0);
+    // const [totalPoints, setTotalPoints] = useState(0);
+    const totalPoints = 0;
     // Add Functionality for open and close dates
     const [blockCount, setBlockCount] = useState<number>(1);
 
@@ -47,7 +49,7 @@ const AssignmentCreatorComponent: React.FC<ClientComponentProps> = ({ instructor
     // Variables for block data
     const [questions, setQuestions] = useState<Question[]>([]);
     const [selectedIds, setSelectedIds] = useState<number[][]>([]);
-    const [blockPoints, setBlockPoints] = useState([0]);
+    //const [blockPoints, setBlockPoints] = useState([0]);
 
     // State Management
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -116,7 +118,7 @@ const AssignmentCreatorComponent: React.FC<ClientComponentProps> = ({ instructor
         const { error: assignmentUpdateError } = await supabase
             .from('assignments_list')
             .update([newData])
-            .eq('assignment_id', assignmentId);
+            .eq('assignment_id', Number(assignmentId));
 
         if (assignmentUpdateError) {
             console.error("Problem updating assignment details:", assignmentUpdateError.message);
@@ -127,11 +129,11 @@ const AssignmentCreatorComponent: React.FC<ClientComponentProps> = ({ instructor
         }
     }
 
-    const openModal = (index: number) => {
-        getQuestions();
-        setCurrentBlockIndex(index); // Set the current block index
-        setIsModalOpen(true);
-    };
+    // const openModal = (index: number) => {
+    //     getQuestions();
+    //     setCurrentBlockIndex(index); // Set the current block index
+    //     setIsModalOpen(true);
+    // };
 
     const toggleQuestionSelection = (questionId: number) => {
         setSelectedQuestionIds((prevSelected) =>
@@ -154,11 +156,13 @@ const AssignmentCreatorComponent: React.FC<ClientComponentProps> = ({ instructor
 
         for (let i = 1; i <= blockCount; i++) {
             const insertionData = {
-                assignment_id: assignmentId,
+                assignment_id: Number(assignmentId),
                 block_number: i,
                 question_ids: selectedIds[i - 1],
                 total_points: 0 //TODO
             }
+
+            console.log(insertionData);
 
             const { error: insertionError } = await supabase
                 .from('question_blocks')
@@ -169,16 +173,15 @@ const AssignmentCreatorComponent: React.FC<ClientComponentProps> = ({ instructor
             }
         }
 
-        const { data: updated, error: UpdateError } = await supabase
+        const { error: UpdateError } = await supabase
             .from('assignments_list')
             .update({ block_count: blockCount })
-            .eq('assignment_id', assignmentId)
-            .select();
+            .eq('assignment_id', Number(assignmentId));
 
         if (UpdateError) {
             console.error("Error updating assignment data", UpdateError.message);
         }
-        else{
+        else {
             router.push(`/instructor-dashboard/${course_id}`);
         }
     };
@@ -209,14 +212,13 @@ const AssignmentCreatorComponent: React.FC<ClientComponentProps> = ({ instructor
             }
 
             {(assignmentId) &&
-                <button onClick={() => { updateAssignmentDetails(); }}>
-                    Save Assignment Details
-                </button>
-            }
-
-            {(assignmentId) &&
 
                 <div>
+
+                    <button onClick={() => { updateAssignmentDetails(); }}>
+                        Save Assignment Details
+                    </button>
+
                     <h3> Total Points: {totalPoints}</h3>
                     <br></br>
                     <ul>
@@ -229,6 +231,7 @@ const AssignmentCreatorComponent: React.FC<ClientComponentProps> = ({ instructor
                                 }}>
                                     Select Questions
                                 </button>
+                                <Link href={`/question-creator/${course_id}/${assignmentId}`}> Create New Question </Link>
 
                                 {/* Display selected questions for this block */}
                                 <div>
