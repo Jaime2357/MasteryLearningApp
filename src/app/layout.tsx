@@ -1,4 +1,5 @@
-import { FC, ReactNode } from "react"
+import { FC, ReactNode } from "react";
+import "./globals.css";
 
 interface Props {
     children: ReactNode;
