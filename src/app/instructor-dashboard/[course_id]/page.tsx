@@ -29,7 +29,7 @@ export default async function InstructorDashboard({ params }: { params: CoursePa
     // Fetch assignments
     const { data: assignments, error: assignmentError } = await supabase
         .from('assignments_list')
-        .select('assignment_id, assignment_name, due_date, assigned, open')
+        .select()
         .eq('course_id', course_id);
 
     if (assignmentError || !assignments || assignments.length === 0) {
