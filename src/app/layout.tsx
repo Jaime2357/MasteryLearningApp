@@ -8,7 +8,7 @@ interface Props {
 const Layout: FC<Props> = (props) => {
     return <html lang="en">
         <body>
-            <main>{props.children}</main>
+            {props.children}
         </body>
     </html>
 }

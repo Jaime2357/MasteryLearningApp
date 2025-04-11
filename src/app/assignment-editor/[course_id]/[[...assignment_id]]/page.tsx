@@ -1,6 +1,6 @@
 import { createClient } from '@/utils/supabase/server';
 import { redirect } from 'next/navigation';
-import AssignmentCreatorComponent from './components/assignmentCreatorClient';
+import AssignmentEditorComponent from './components/assignmentEditorClient';
 
 type AssignmentParams = { course_id: string, assignment_id: string | null };
 
@@ -28,7 +28,7 @@ export default async function AssignmentCreator({ params }: { params: Assignment
 
     // Pass data to client component
     return (
-        <AssignmentCreatorComponent
+        <AssignmentEditorComponent
             instructor_id={instructor.instructor_id}
             course_id={course_id}
             assignment_id={assignment_id}

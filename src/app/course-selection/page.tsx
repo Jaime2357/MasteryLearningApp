@@ -114,7 +114,8 @@ export default async function CourseSelection() {
                             </li>
                         ))}
                     </ul>
-                    <p> Create Course </p>
+                    <Link href={`/course-creator`}> Create Course </Link>
+                    <p> ------------------------------------------</p>
                 </div>
             }
             {(!instructor) &&

@@ -1,6 +1,6 @@
 import { createClient } from '@/utils/supabase/server';
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import InstructorDashboardComponent from './components/instructorDashboardClient'
 
 type CourseParams = { course_id: string };
 
@@ -18,7 +18,7 @@ export default async function InstructorDashboard({ params }: { params: CoursePa
     // Fetch course information
     const { data: course, error: courseError } = await supabase
         .from('courses')
-        .select('course_name')
+        .select('course_name, enrollment_code')
         .eq('course_id', course_id)
         .single();
 
@@ -37,30 +37,10 @@ export default async function InstructorDashboard({ params }: { params: CoursePa
     }
 
     return (
-        <div>
-            <Link href={`/course-selection`}> Course Selection </Link>
-            <h1>{course.course_name}</h1>
-            <h2> Posted Assignments </h2>
-            <ul>
-                {assignments.map((assignment) => (
-                    <li key={assignment.assignment_id}>
-                        {/* <Link href ={`../question-page/${course_id}/${assignment.assignment_id}`}> */}
-                            <h2>{assignment.assignment_name}</h2>
-                        {/* </Link> */}
-                        <p>Due Date: {new Date(assignment.due_date).toLocaleDateString()}</p>
-                        {(assignment.assigned) && <p> Assigned </p>}
-                        {(!assignment.assigned) && <p> Not Assigned </p>}
-                        {(assignment.assigned) && <p> Open </p>}
-                        {(!assignment.assigned) && <p> Closed </p>}
-                        <Link href={`/assignment-preview/${course_id}/${assignment.assignment_id}`}> View Assignment </Link>
-                        <br></br>
-                        <Link href={`/assignment-grade-list/${course_id}/${assignment.assignment_id}`}> View Student Grades </Link>
-                        {(assignment.assigned) && <p> Edit Assignment </p>}
-                    </li>
-                ))}
-            </ul>
-
-            <Link href={`/assignment-creator/${course_id}`}> Create Assignment </Link>
-        </div>
+        <InstructorDashboardComponent
+            course ={course}
+            course_id = {course_id}
+            initialAssignments ={assignments}
+        />
     );
 }

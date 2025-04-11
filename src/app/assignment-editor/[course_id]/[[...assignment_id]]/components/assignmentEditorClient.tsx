@@ -25,13 +25,13 @@ interface ClientComponentProps {
     assignment_id: string | null;
 }
 
-const AssignmentCreatorComponent: React.FC<ClientComponentProps> = ({ instructor_id, course_id, assignment_id }) => {
+const AssignmentEditorComponent: React.FC<ClientComponentProps> = ({ instructor_id, course_id, assignment_id }) => {
     const supabase = createClient();
     const router = useRouter();
 
     const [assignmentId, setAssignmentId] = useState(assignment_id);
     const [assignmentName, setAssignmentName] = useState('');
-    const [dueDate, setDueDate] = useState(new Date());
+    const [dueDate, setDueDate] = useState<Date>(new Date());
     const [totalPoints, setTotalPoints] = useState(0);
     const [blockCount, setBlockCount] = useState<number>(1);
     const [threshold, setThreshold] = useState<number[]>([]);
@@ -44,17 +44,19 @@ const AssignmentCreatorComponent: React.FC<ClientComponentProps> = ({ instructor
     const [assignmentDraft, setAssignmentDraft] = useState<AssignmentDraft>();
 
     // Fetch questions and assignment draft
+
+    // Fetch questions and assignment draft
     useEffect(() => {
         getQuestions();
         if (assignmentId) {
             getAssignmentDraft();
+            getQuestionBlocks();
         }
     }, [assignmentId]);
 
-    // Initialize selected IDs when block count changes
     useEffect(() => {
-        setSelectedIds(Array.from({ length: blockCount }, () => []));
-    }, [blockCount]);
+        getQuestions();
+    }, [assignmentDraft]);
 
     // Update total points when block points change
     useEffect(() => {
@@ -83,6 +85,9 @@ const AssignmentCreatorComponent: React.FC<ClientComponentProps> = ({ instructor
             console.error("Problem retrieving draft:", error.message);
         } else {
             setAssignmentDraft(retrievedDraft);
+            setDueDate(retrievedDraft.due_date);
+            setAssignmentName(retrievedDraft.assignment_name)
+
         }
     }
 
@@ -110,6 +115,7 @@ const AssignmentCreatorComponent: React.FC<ClientComponentProps> = ({ instructor
         } else {
             alert("Successfully created new assignment entry");
             setAssignmentId(newId.assignment_id);
+            router.push(`/assignment-editor/${course_id}/${newId.assignment_id}`)
         }
     }
 
@@ -135,6 +141,7 @@ const AssignmentCreatorComponent: React.FC<ClientComponentProps> = ({ instructor
             console.error("Problem updating assignment details:", error.message);
         } else {
             alert("Successfully updated assignment details");
+            getAssignmentDraft();
         }
     }
 
@@ -157,6 +164,18 @@ const AssignmentCreatorComponent: React.FC<ClientComponentProps> = ({ instructor
         });
     }, []);
 
+    const isSaveDisabled = () => {
+        return (
+            selectedIds.some(block => block.length === 0) ||
+            threshold.some(value =>
+                isNaN(value) ||
+                typeof value !== 'number' ||
+                value < 0 ||
+                value > (blockPoints[threshold.indexOf(value)] || 0)
+            )
+        );
+    };
+
     // Update block points when questions change
     useEffect(() => {
         const newBlockPoints = selectedIds.map((block) =>
@@ -168,24 +187,145 @@ const AssignmentCreatorComponent: React.FC<ClientComponentProps> = ({ instructor
         setBlockPoints(newBlockPoints);
     }, [selectedIds, questions]);
 
+    async function getQuestionBlocks() {
+        const { data: existingBlocks, error } = await supabase
+            .from('question_blocks')
+            .select('block_number, question_ids, total_points, mastery_threshold')
+            .eq('assignment_id', assignmentId)
+            .order('block_number', { ascending: true });
+
+        if (error) {
+            console.error("Error fetching blocks:", error.message);
+        } else if (existingBlocks) {
+            // Set all states directly without relying on useEffect
+            setBlockCount(existingBlocks.length);
+            setSelectedIds(existingBlocks.map(b => b.question_ids));
+            setBlockPoints(existingBlocks.map(b => b.total_points));
+            setThreshold(existingBlocks.map(b => b.mastery_threshold));
+        }
+    }
+
+
     // Save blocks into Supabase
     async function saveBlocks() {
-        for (let i = 1; i <= blockCount; i++) {
-            const insertionData = {
-                assignment_id: Number(assignmentId),
-                block_number: i,
-                question_ids: selectedIds[i - 1],
-                total_points: blockPoints[i - 1],
-                mastery_threshold: threshold[i - 1],
-            };
+        // Update assignment metadata first
+        const { error: metaError } = await supabase
+            .from('assignments_list')
+            .update({ block_count: blockCount })
+            .eq('assignment_id', Number(assignmentId));
 
-            const { error } = await supabase.from('question_blocks').insert([insertionData]);
-            if (error) console.error("Error creating question blocks:", error.message);
+        if (metaError) {
+            console.error("Meta update error:", metaError.message);
+            return;
         }
 
-        const { error } = await supabase.from('assignments_list').update({block_count: blockCount}).eq('assignment_id', Number(assignmentId));
-        if (error) console.error("Error updating assignment data:", error.message);
-        else router.push(`/instructor-dashboard/${course_id}`);
+        // Upsert all blocks
+        const { error: blockError } = await supabase
+            .from('question_blocks')
+            .upsert(
+                selectedIds.map((_, index) => ({
+                    assignment_id: Number(assignmentId),
+                    block_number: index + 1,
+                    question_ids: selectedIds[index],
+                    total_points: blockPoints[index],
+                    mastery_threshold: threshold[index]
+                })),
+                { onConflict: 'assignment_id,block_number' }
+            );
+
+        if (blockError) {
+            console.error("Block save error:", blockError.message);
+        } else {
+            alert("Saved successfully");
+        }
+    }
+
+
+    async function deleteDraft(id: string) {
+        const { error: AssignmentDeletionError } = await supabase
+            .from('assignments_list')
+            .delete()
+            .eq('assignment_id', id)
+
+        if (AssignmentDeletionError) {
+            console.error('Problem Deleting Assignment: ', AssignmentDeletionError.message);
+            return null;
+        }
+        else {
+            alert("Draft Deleted Successfully");
+            router.push(`/instructor-dashboard/${course_id}`)
+        }
+    }
+
+    const addBlock = () => {
+        setBlockCount(prev => prev + 1);
+        setSelectedIds(prev => [...prev, []]);
+        setThreshold(prev => [...prev, NaN]);
+        setBlockPoints(prev => [...prev, 0]);
+    };
+
+    const removeBlock = async (blockIndex: number) => {
+        const blockNumberToDelete = blockIndex + 1; // Blocks are 1-indexed in the database
+
+        // Delete block from the database
+        const { error } = await supabase
+            .from('question_blocks')
+            .delete()
+            .eq('assignment_id', Number(assignmentId))
+            .eq('block_number', blockNumberToDelete);
+
+        if (error) {
+            console.error("Error deleting block:", error.message);
+            alert("Failed to delete block. Please try again.");
+            return;
+        }
+
+        // Update local state after successful deletion
+        setBlockCount((prev) => prev - 1);
+        setSelectedIds((prev) => prev.filter((_, index) => index !== blockIndex));
+        setBlockPoints((prev) => prev.filter((_, index) => index !== blockIndex));
+        setThreshold((prev) => prev.filter((_, index) => index !== blockIndex));
+
+        // Update block numbers for remaining blocks
+    const updateBlockNumbers = async () => {
+        const { data: remainingBlocks, error } = await supabase
+            .from('question_blocks')
+            .select('*')
+            .eq('assignment_id', Number(assignmentId))
+            .order('block_number', { ascending: true });
+
+        if (error) {
+            console.error("Error fetching remaining blocks:", error.message);
+            return;
+        }
+
+        // Update each block's number
+        for (let i = 0; i < remainingBlocks.length; i++) {
+            const { error: updateError } = await supabase
+                .from('question_blocks')
+                .update({ block_number: i + 1 })
+                .eq('assignment_id', Number(assignmentId))
+                .eq('block_number', remainingBlocks[i].block_number);
+
+            if (updateError) {
+                console.error("Error updating block numbers:", updateError.message);
+                return;
+            }
+        }
+    };
+
+        await updateBlockNumbers();
+    };
+
+    function isDateBeforeToday(date: Date) {
+        const inputDate = new Date(date);
+        const today = new Date();
+
+        // Reset hours, minutes, seconds, and milliseconds to 0 for accurate comparison
+        inputDate.setHours(0, 0, 0, 0);
+        today.setHours(0, 0, 0, 0);
+
+        return inputDate < today;
     }
 
     return (
@@ -200,14 +340,26 @@ const AssignmentCreatorComponent: React.FC<ClientComponentProps> = ({ instructor
                 <h2>Due Date:</h2>
                 {assignmentDraft && <p>{new Date(assignmentDraft.due_date).toLocaleString()}</p>}
             </div>
-            <input type="datetime-local" onChange={(e) => setDueDate(new Date(e.target.value))} />
+            <input
+                type="datetime-local"
+                onChange={(e) => setDueDate(new Date(e.target.value))}
+            />
             {blockPoints && <h3>Total Points: {totalPoints}</h3>}
-            {!assignmentId && (
-                <button onClick={insertAssignmentDetails}>Create New Assignment</button>
-            )}
+            {(!assignmentId
+                && assignmentName != ''
+                && !isDateBeforeToday(dueDate)) && (
+                    <button onClick={insertAssignmentDetails}>Create New Assignment</button>
+                )}
             {assignmentId && (
                 <div>
-                    <button onClick={updateAssignmentDetails}>Save Assignment Details</button>
+                    {(assignmentName != ''
+                        && !isDateBeforeToday(dueDate)
+                        && (assignmentName != assignmentDraft?.assignment_name
+                            || dueDate != assignmentDraft?.due_date)) &&
+                        <button onClick={updateAssignmentDetails}>Save Assignment Details</button>
+                    }
+                    <button onClick={() => deleteDraft(assignmentId)}> Delete Draft </button>
+                    <p> --------------------------------------------------------------------------- </p>
                     <ul>
                         {Array.from({ length: blockCount }).map((_, index) => (
                             <li key={index}>
@@ -216,19 +368,21 @@ const AssignmentCreatorComponent: React.FC<ClientComponentProps> = ({ instructor
                                     <h3>Mastery Threshold:</h3>
                                     <input
                                         type="number"
-                                        value={threshold[index]}
-                                        onChange={(e) =>
-                                            saveBlockThreshold(Number(e.target.value), index)
-                                        }
+                                        value={isNaN(threshold[index]) ? '' : threshold[index]}
+                                        onChange={(e) => {
+                                            const numValue = Number(e.target.value);
+                                            saveBlockThreshold(numValue, index);
+                                        }}
                                         min="0"
                                         max={blockPoints[index] || 0}
                                     />
+
                                 </div>
                                 <button onClick={() => { setIsModalOpen(true); setCurrentBlockIndex(index); }}>Select Questions</button>
                                 <Link href={`/question-creator/${course_id}/${assignmentId}`}>Create New Question</Link>
                                 <div>
                                     {/* Zero keeps appearing here */}
-                                    {(blockPoints[index]) && <h3>Points for this block: {blockPoints[index]}</h3>} 
+                                    {(blockPoints[index] != 0) && <h3>Points for this block: {blockPoints[index]}</h3>}
                                     {selectedIds[index]?.map((id) => {
                                         const q = questions.find((q) => q.question_id === id);
                                         return (
@@ -240,9 +394,22 @@ const AssignmentCreatorComponent: React.FC<ClientComponentProps> = ({ instructor
                                                         i === index ? block.filter((selectedId) => selectedId !== id) : block))}>×</button>
                                             </div>);
                                     })}
-                                </div></li>))}
-                    </ul><button onClick={() => setBlockCount(blockCount + 1)}>Add Block</button><br />
-                    <button onClick={saveBlocks}>Create Assignment</button></div>)}
+                                </div>
+                                <button onClick={() => removeBlock(index)}>Remove Block</button>
+                                <p> ----------------------------- </p>
+                            </li>
+                        ))}
+                    </ul>
+                    <button onClick={addBlock}>Add Block</button>
+                    <br />
+                    <button onClick={saveBlocks} disabled={isSaveDisabled()}>Save Assignment</button>
+                    {isSaveDisabled() && (
+                        <p style={{ color: 'red' }}>
+                            Please ensure all blocks have selected questions and thresholds before saving.
+                        </p>
+                    )}
+                </div>
+            )}
 
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
                 <h2>Select Questions</h2><ul>{questions.map((question) => (
@@ -253,4 +420,4 @@ const AssignmentCreatorComponent: React.FC<ClientComponentProps> = ({ instructor
                 </ul><button onClick={saveSelectedQuestions}>Save Selection</button></Modal></div>);
 };
 
-export default AssignmentCreatorComponent;
+export default AssignmentEditorComponent;

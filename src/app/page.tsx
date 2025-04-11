@@ -6,14 +6,14 @@ import { logout } from './actions'
 const Page = () => {
   
   return (
-    <body>
+    <main>
       <div>hello</div>
       <div>
         <button onClick={logout}>
           Sign Out
         </button>
       </div>
-    </body>
+    </main>
 
   )
 }

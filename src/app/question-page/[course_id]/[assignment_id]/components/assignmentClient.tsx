@@ -20,6 +20,7 @@ type Question = {
 type Block = {
     block_id: number;
     question_ids: number[];
+    threshold: number;
 };
 
 interface ClientComponentProps {
@@ -41,7 +42,7 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({ assignmentId, ass
     const [submissionId, setSubId] = useState(0);
     const [showFeedback, setShowFeedback] = useState(false);
     const [percentageCorrect, setPercentageCorrect] = useState(0);
-    const threshold = 100; //Temporary
+    const [threshold, setThreshold] = useState(blocks[currentBlock].threshold); //Temporary
     const [userAnswers, setUserAnswers] = useState(
         questions.map(() => ({ answer: '', correct: false }))
     );
@@ -116,6 +117,7 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({ assignmentId, ass
             setCurrentBlock(stateData.current_block);
             setVersion(stateData.current_version);
             setInitialized(true);
+            setThreshold(blocks[currentBlock].threshold)
         }
     }
 
