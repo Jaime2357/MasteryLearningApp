@@ -115,6 +115,24 @@ const CourseEditorComponent: React.FC<ClientComponentProps> = ({ instructor_id, 
         }
     }
 
+    async function deleteCourse() {
+
+        const {error: deletionError} = await supabase
+        .from('courses')
+        .delete()
+        .eq('course_id', course_id);
+
+        if(deletionError){
+            console.error("Problem Deleting Course: ", deletionError.message)
+            return null;
+        }
+        else{
+            alert('Course Deleted Successfully')
+            router.push(`/course-selection`);
+        }
+        
+    }
+
     return (
         <div>
             <button onClick={() => router.push(`/instructor-dashboard/${course_id}`)}> Back to Course </button>
@@ -155,6 +173,9 @@ const CourseEditorComponent: React.FC<ClientComponentProps> = ({ instructor_id, 
                 && (courseName != '' || catalogCode != '')) &&
                 <button onClick={updateCourse}> Update Course </button>
             }
+            <br/>
+
+            <button onClick={() => deleteCourse()}> Delete Course </button>
         </div>
     )
 }
