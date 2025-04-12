@@ -38,7 +38,7 @@ const InstructorDashboardComponent: React.FC<ClientComponentProps> = ({ course_i
     }, []);
 
     async function getAssignments() {
-        const { data: retrievedAssignments, error } = await supabase
+        const { data: retrievedAssignments, error: assignmentError } = await supabase
             .from('assignments_list')
             .select(`
                 assignment_id, 
@@ -53,7 +53,13 @@ const InstructorDashboardComponent: React.FC<ClientComponentProps> = ({ course_i
             `)
             .eq('course_id', course_id);
 
-        if (!error && retrievedAssignments) setAssignments(retrievedAssignments);
+        if (assignmentError) {
+            console.error("Problem Retrieving Assignments")
+            return null;
+        }
+        else {
+            setAssignments(retrievedAssignments);
+        }
     }
 
     // Modified toggle handlers
@@ -115,56 +121,62 @@ const InstructorDashboardComponent: React.FC<ClientComponentProps> = ({ course_i
 
             <h1>{course.course_name}</h1>
             <p>Enrollment Code: {course.enrollment_code}</p>
+            <Link href={`/course-editor/${course_id}`}> Edit Course </Link>
             <p>-----</p>
 
             <h2>Posted Assignments</h2>
             <p>------------------------------------------</p>
 
-            <ul>
-                {assignments.map((assignment) => (
-                    <li key={assignment.assignment_id}>
-                        <h2>{assignment.assignment_name}</h2>
-                        <p>Due Date: {new Date(assignment.due_date).toLocaleDateString()}</p>
+            {(assignments.length <= 0) &&
+                <p> No assignments </p>
+            }
+            {(assignments.length > 0) &&
+                <ul>
+                    {assignments.map((assignment) => (
+                        <li key={assignment.assignment_id}>
+                            <h2>{assignment.assignment_name}</h2>
+                            <p>Due Date: {new Date(assignment.due_date).toLocaleDateString()}</p>
 
-                        {/* Open/Close Toggle */}
-                        <button
-                            onClick={() => setOpenValue(assignment.open, assignment.assignment_id)}
-                            title={assignment.open_override ? "Manual override active" : ""}
-                        >
-                            {assignment.open ? 'OPEN' : 'CLOSED'}
-                            {assignment.open_override && " (Manual)"}
-                        </button>
+                            {/* Open/Close Toggle */}
+                            <button
+                                onClick={() => setOpenValue(assignment.open, assignment.assignment_id)}
+                                title={assignment.open_override ? "Manual override active" : ""}
+                            >
+                                {assignment.open ? 'OPEN' : 'CLOSED'}
+                                {assignment.open_override && " (Manual)"}
+                            </button>
 
-                        {/* Assign/Unassign Toggle */}
-                        <button
-                            onClick={() => setAssignedValue(assignment.assigned, assignment.assignment_id)}
-                            disabled={isAutoAssigned(assignment)}
-                            title={isAutoAssigned(assignment) ? "Auto-assigned based on schedule" : ""}
-                        >
-                            {assignment.assigned ? 'ASSIGNED' : 'NOT ASSIGNED'}
-                            {isAutoAssigned(assignment) && " (Auto)"}
-                        </button>
+                            {/* Assign/Unassign Toggle */}
+                            <button
+                                onClick={() => setAssignedValue(assignment.assigned, assignment.assignment_id)}
+                                disabled={isAutoAssigned(assignment)}
+                                title={isAutoAssigned(assignment) ? "Auto-assigned based on schedule" : ""}
+                            >
+                                {assignment.assigned ? 'ASSIGNED' : 'NOT ASSIGNED'}
+                                {isAutoAssigned(assignment) && " (Auto)"}
+                            </button>
 
-                        {/* Existing links and buttons */}
-                        <Link href={`/assignment-preview/${course_id}/${assignment.assignment_id}`}>
-                            View Assignment
-                        </Link>
-                        <br />
-                        <Link href={`/assignment-grade-list/${course_id}/${assignment.assignment_id}`}>
-                            View Student Grades
-                        </Link>
-                        <Link href={`/assignment-editor/${course_id}/${assignment.assignment_id}`}>
-                            Edit Assignment
-                        </Link>
-                        <button
-                            onClick={() => deleteAssignment(assignment.assignment_id)}
-                        >
-                            Delete Assignment
-                        </button>
-                        <p>------------------------------------------</p>
-                    </li>
-                ))}
-            </ul>
+                            {/* Existing links and buttons */}
+                            <Link href={`/assignment-preview/${course_id}/${assignment.assignment_id}`}>
+                                View Assignment
+                            </Link>
+                            <br />
+                            <Link href={`/assignment-grade-list/${course_id}/${assignment.assignment_id}`}>
+                                View Student Grades
+                            </Link>
+                            <Link href={`/assignment-editor/${course_id}/${assignment.assignment_id}`}>
+                                Edit Assignment
+                            </Link>
+                            <button
+                                onClick={() => deleteAssignment(assignment.assignment_id)}
+                            >
+                                Delete Assignment
+                            </button>
+                            <p>------------------------------------------</p>
+                        </li>
+                    ))}
+                </ul>
+            }
             <Link href={`/assignment-editor/${course_id}`}>Create Assignment</Link>
         </div>
     );
