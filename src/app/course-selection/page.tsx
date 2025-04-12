@@ -2,6 +2,7 @@ import React from "react";
 import Link from "next/link";
 import { redirect } from 'next/navigation';
 import { createClient } from '@/utils/supabase/server'
+import CourseSelectionComponent from "./components/courseSelectionClient";
 
 interface Instructor {
     instructor_id: string;
@@ -74,7 +75,7 @@ export default async function CourseSelection() {
         )
     }
 
-    let instructorMap: Map<string, Instructor>;
+    let instructorMap: Map<string, Instructor> = new Map();
 
     if (!instructor) {
 
@@ -94,52 +95,15 @@ export default async function CourseSelection() {
 
     }
 
-    function getInstructor(instructor_id: string) {
-        return instructorMap.get(instructor_id);
-    }
-
     return (
 
-        <div>
-            {(instructor) &&
-                <div>
-                    <h1> Courses: </h1>
-                    <ul>
-                        {courses.map((course, index) => (
-                            <li key={course.course_id || index}>
-                                <Link href={`/instructor-dashboard/${course.course_id}`}>
-                                ({course.course_id}) {course.catalog_code}: {course.course_name}
-                                <br />
-                                </Link>
-                            </li>
-                        ))}
-                    </ul>
-                    <Link href={`/course-creator`}> Create Course </Link>
-                    <p> ------------------------------------------</p>
-                </div>
-            }
-            {(!instructor) &&
-                <div>
-                    <h1> Courses: </h1>
-                    <ul>
-                        {courses.map((course, index) => {
-                            const instructor = getInstructor(course.instructor_id);
-                            return (
-                                <li key={course.course_id || index}>
-                                    <Link href={`/student-dashboard/${course.course_id}`}>
-                                        ({course.course_id}) {course.catalog_code}: {course.course_name}
-                                        <br />
-                                        Instructor: {instructor
-                                            ? `${instructor.first_name} ${instructor.last_name}`
-                                            : "Unknown Instructor"}
-                                    </Link>
-                                </li>
-                            );
-                        })}
-                    </ul>
-                </div>
-            }
-        </div>
+        <CourseSelectionComponent
+            id={id}
+            instructor={instructor}
+            instructors={instructorMap}
+            courses={courses}
+
+        />
     )
 
 }
