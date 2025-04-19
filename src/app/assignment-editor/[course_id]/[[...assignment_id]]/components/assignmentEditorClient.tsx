@@ -12,6 +12,8 @@ type Question = {
     points: number;
     solutions: string[];
     feedback: string[];
+    question_image?: string[];
+    image_urls?: string[]; // Signed URLs for private bucket
 };
 
 type AssignmentDraft = {
@@ -24,6 +26,9 @@ interface ClientComponentProps {
     course_id: string;
     assignment_id: string | null;
 }
+
+const BUCKET_NAME = 'question-images';
+const SIGNED_URL_EXPIRY = 60; // seconds
 
 const AssignmentEditorComponent: React.FC<ClientComponentProps> = ({ instructor_id, course_id, assignment_id }) => {
     const supabase = createClient();
@@ -44,15 +49,13 @@ const AssignmentEditorComponent: React.FC<ClientComponentProps> = ({ instructor_
     const [assignmentDraft, setAssignmentDraft] = useState<AssignmentDraft>();
 
     // Fetch questions and assignment draft
-
-    // Fetch questions and assignment draft
     useEffect(() => {
         getQuestions();
         if (assignmentId) {
             getAssignmentDraft();
             getQuestionBlocks();
         }
-    }, [assignmentId]);
+    }, [assignmentId]);    
 
     useEffect(() => {
         getQuestions();
@@ -63,13 +66,33 @@ const AssignmentEditorComponent: React.FC<ClientComponentProps> = ({ instructor_
         setTotalPoints(blockPoints.reduce((sum, points) => sum + points, 0));
     }, [blockPoints]);
 
-    // Fetch questions from Supabase
+    // Fetch questions from Supabase and generate signed URLs for images
     async function getQuestions() {
         const { data: retrievedQuestions, error } = await supabase.from('questions').select();
         if (error) {
             console.error("Problem retrieving questions:", error.message);
         } else {
-            setQuestions(retrievedQuestions || []);
+            // Generate signed URLs for all images in parallel
+            const questionsWithSignedUrls: Question[] = await Promise.all(
+                (retrievedQuestions || []).map(async (q: Question) => {
+                    const image_urls: string[] = [];
+                    if (q.question_image && Array.isArray(q.question_image)) {
+                        for (const path of q.question_image) {
+                            if (path && path.trim() !== '') {
+                                const { data, error } = await supabase
+                                    .storage
+                                    .from(BUCKET_NAME)
+                                    .createSignedUrl(path, SIGNED_URL_EXPIRY);
+                                if (data?.signedUrl) {
+                                    image_urls.push(data.signedUrl);
+                                }
+                            }
+                        }
+                    }
+                    return { ...q, image_urls };
+                })
+            );
+            setQuestions(questionsWithSignedUrls);
         }
     }
 
@@ -193,17 +216,50 @@ const AssignmentEditorComponent: React.FC<ClientComponentProps> = ({ instructor_
             .select('block_number, question_ids, total_points, mastery_threshold')
             .eq('assignment_id', assignmentId)
             .order('block_number', { ascending: true });
-
+    
         if (error) {
             console.error("Error fetching blocks:", error.message);
         } else if (existingBlocks) {
-            // Set all states directly without relying on useEffect
+            // Get all unique question IDs from all blocks
+            const allQuestionIds = existingBlocks
+                .flatMap(b => b.question_ids)
+                .filter((v, i, a) => a.indexOf(v) === i); // Dedupe
+    
+            // Fetch full question data for these IDs
+            const { data: questionsData } = await supabase
+                .from('questions')
+                .select()
+                .in('question_id', allQuestionIds);
+    
+            // Generate image URLs for these questions
+            const questionsWithImages = await Promise.all(
+                (questionsData || []).map(async (q: Question) => {
+                    const image_urls = await Promise.all(
+                        (q.question_image || []).map(async (path) => {
+                            if (!path) return null;
+                            const { data } = await supabase.storage
+                                .from(BUCKET_NAME)
+                                .createSignedUrl(path, SIGNED_URL_EXPIRY);
+                            return data?.signedUrl || null;
+                        })
+                    );
+                    return { ...q, image_urls: image_urls.filter(Boolean) as string[] };
+                })
+            );
+    
+            // Update state
+            setQuestions(prev => [
+                ...prev.filter(p => !allQuestionIds.includes(p.question_id)),
+                ...questionsWithImages
+            ]);
             setBlockCount(existingBlocks.length);
             setSelectedIds(existingBlocks.map(b => b.question_ids));
             setBlockPoints(existingBlocks.map(b => b.total_points));
             setThreshold(existingBlocks.map(b => b.mastery_threshold));
         }
     }
+    
+
 
 
     // Save blocks into Supabase
@@ -287,32 +343,32 @@ const AssignmentEditorComponent: React.FC<ClientComponentProps> = ({ instructor_
         setThreshold((prev) => prev.filter((_, index) => index !== blockIndex));
 
         // Update block numbers for remaining blocks
-    const updateBlockNumbers = async () => {
-        const { data: remainingBlocks, error } = await supabase
-            .from('question_blocks')
-            .select('*')
-            .eq('assignment_id', Number(assignmentId))
-            .order('block_number', { ascending: true });
-
-        if (error) {
-            console.error("Error fetching remaining blocks:", error.message);
-            return;
-        }
-
-        // Update each block's number
-        for (let i = 0; i < remainingBlocks.length; i++) {
-            const { error: updateError } = await supabase
+        const updateBlockNumbers = async () => {
+            const { data: remainingBlocks, error } = await supabase
                 .from('question_blocks')
-                .update({ block_number: i + 1 })
+                .select('*')
                 .eq('assignment_id', Number(assignmentId))
-                .eq('block_number', remainingBlocks[i].block_number);
+                .order('block_number', { ascending: true });
 
-            if (updateError) {
-                console.error("Error updating block numbers:", updateError.message);
+            if (error) {
+                console.error("Error fetching remaining blocks:", error.message);
                 return;
             }
-        }
-    };
+
+            // Update each block's number
+            for (let i = 0; i < remainingBlocks.length; i++) {
+                const { error: updateError } = await supabase
+                    .from('question_blocks')
+                    .update({ block_number: i + 1 })
+                    .eq('assignment_id', Number(assignmentId))
+                    .eq('block_number', remainingBlocks[i].block_number);
+
+                if (updateError) {
+                    console.error("Error updating block numbers:", updateError.message);
+                    return;
+                }
+            }
+        };
 
         await updateBlockNumbers();
     };
@@ -326,6 +382,13 @@ const AssignmentEditorComponent: React.FC<ClientComponentProps> = ({ instructor_
         today.setHours(0, 0, 0, 0);
 
         return inputDate < today;
+    }
+
+    async function getImageUrls(imagePaths: string[] | undefined): Promise<string[]> {
+        if (!imagePaths || imagePaths.length === 0) return [];
+        return imagePaths.map(path =>
+            supabase.storage.from('question-images').getPublicUrl(path).data.publicUrl
+        );
     }
 
     return (
@@ -381,18 +444,38 @@ const AssignmentEditorComponent: React.FC<ClientComponentProps> = ({ instructor_
                                 <button onClick={() => { setIsModalOpen(true); setCurrentBlockIndex(index); }}>Select Questions</button>
                                 <Link href={`/question-creator/${course_id}/${assignmentId}`}>Create New Question</Link>
                                 <div>
-                                    {/* Zero keeps appearing here */}
                                     {(blockPoints[index] != 0) && <h3>Points for this block: {blockPoints[index]}</h3>}
                                     {selectedIds[index]?.map((id) => {
                                         const q = questions.find((q) => q.question_id === id);
                                         return (
                                             <div key={id} className="chip">
                                                 {q?.question_body.join(', ')}
-                                                {(q) && <p> {q?.points} Points</p>}
+                                                {q && <p>{q.points} Points</p>}
+
+                                                {/* Render signed image URLs */}
+                                                {q?.image_urls?.map((url, idx) => url && (
+                                                    <img
+                                                        key={idx}
+                                                        src={url}
+                                                        alt={`Question ${q.question_id} image ${idx + 1}`}
+                                                        style={{
+                                                            width: '80px',
+                                                            height: '80px',
+                                                            objectFit: 'cover',
+                                                            borderRadius: '4px'
+                                                        }}
+                                                        onError={(e) => {
+                                                            e.currentTarget.style.display = 'none';
+                                                        }}
+                                                    />
+                                                ))}
                                                 <button onClick={() =>
                                                     setSelectedIds((prev) => prev.map((block, i) =>
-                                                        i === index ? block.filter((selectedId) => selectedId !== id) : block))}>×</button>
-                                            </div>);
+                                                        i === index ? block.filter((selectedId) => selectedId !== id) : block))}>
+                                                    ×
+                                                </button>
+                                            </div>
+                                        );
                                     })}
                                 </div>
                                 <button onClick={() => removeBlock(index)}>Remove Block</button>
@@ -411,13 +494,51 @@ const AssignmentEditorComponent: React.FC<ClientComponentProps> = ({ instructor_
                 </div>
             )}
 
+            {/* Modal for selecting questions */}
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
-                <h2>Select Questions</h2><ul>{questions.map((question) => (
-                    <li key={question.question_id}><label><input type="checkbox"
-                        checked={selectedQuestionIds.includes(question.question_id)}
-                        onChange={() => setSelectedQuestionIds((prev) => (prev.includes(question.question_id) ?
-                            prev.filter(id => id !== question.question_id) : [...prev, question.question_id]))} />{question.question_body.join(', ')}</label></li>))}
-                </ul><button onClick={saveSelectedQuestions}>Save Selection</button></Modal></div>);
+                <h2>Select Questions</h2>
+                <ul>
+                    {questions.map((question) => (
+                        <li key={question.question_id}>
+                            <label>
+                                <input
+                                    type="checkbox"
+                                    checked={selectedQuestionIds.includes(question.question_id)}
+                                    onChange={() =>
+                                        setSelectedQuestionIds((prev) =>
+                                            prev.includes(question.question_id)
+                                                ? prev.filter(id => id !== question.question_id)
+                                                : [...prev, question.question_id]
+                                        )
+                                    }
+                                />
+                                {question.question_body.join(', ')}
+                            </label>
+
+                            {/* Render signed image URLs in modal */}
+                            {question.image_urls?.map((url, idx) => url && (
+                                <img
+                                    key={idx}
+                                    src={url}
+                                    alt={`Question ${question.question_id} image ${idx + 1}`}
+                                    style={{
+                                        width: '80px',
+                                        height: '80px',
+                                        objectFit: 'cover',
+                                        borderRadius: '4px'
+                                    }}
+                                    onError={(e) => {
+                                        e.currentTarget.style.display = 'none';
+                                    }}
+                                />
+                            ))}
+                        </li>
+                    ))}
+                </ul>
+                <button onClick={saveSelectedQuestions}>Save Selection</button>
+            </Modal>
+        </div>
+    );
 };
 
 export default AssignmentEditorComponent;

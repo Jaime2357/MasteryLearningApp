@@ -10,6 +10,7 @@ interface SubmittedQuestion {
     correctAnswer: string | null;
     grade: number | null;
     pointsPossible: number;
+    image?: string; // Added image field
 }
 
 interface Version {
@@ -86,12 +87,31 @@ export default async function SubmissionReviewPage({ params }: { params: Assignm
     // Fetch questions
     const { data: questions } = await supabase
         .from("questions")
-        .select('question_id, question_body, points, solutions')
+        .select('question_id, question_body, points, solutions, question_image')
         .in('question_id', questionIds);
 
-    if (!questions) {
-        return <div> Error Retrieving Questions </div>;
-    }
+    // Generate signed URLs for images
+    const BUCKET_NAME = 'question-images';
+    const SIGNED_URL_EXPIRY = 600; // 10 minutes
+
+    const questionsWithImages = await Promise.all(
+        (questions || []).map(async (question) => {
+            const image_urls: (string | null)[] = [];
+            if (question.question_image && Array.isArray(question.question_image)) {
+                for (const path of question.question_image) {
+                    if (path?.trim()) {
+                        const { data, error } = await supabase.storage
+                            .from(BUCKET_NAME)
+                            .createSignedUrl(path, SIGNED_URL_EXPIRY);
+                        image_urls.push(error ? null : data?.signedUrl || null);
+                    } else {
+                        image_urls.push(null);
+                    }
+                }
+            }
+            return { ...question, image_urls };
+        })
+    );
 
     // Fetch block submissions
     const { data: blockSubmissions } = await supabase
@@ -107,7 +127,7 @@ export default async function SubmissionReviewPage({ params }: { params: Assignm
     const structuredData: StructuredData = {
         blocks: blocks.map((block) => {
             const blockSubmissionVersions = blockSubmissions.filter((submission) => submission.block_id === block.block_id);
-            const blockQuestions = questions.filter((question) => block.question_ids.includes(question.question_id));
+            const blockQuestions = questionsWithImages.filter((question) => block.question_ids.includes(question.question_id));
 
             const versions: Version[] = Array.from({ length: Math.max(...blockSubmissionVersions.map(s => s.block_version)) + 1 }, (_, versionIndex) => {
                 const versionSubmissions = blockSubmissionVersions.find((submission) => submission.block_version === versionIndex);
@@ -116,10 +136,11 @@ export default async function SubmissionReviewPage({ params }: { params: Assignm
 
                 const versionQuestions: SubmittedQuestion[] = blockQuestions.map((question, questionIndex) => ({
                     questionText: question.question_body[versionIndex] ?? "Unknown Question",
-                    submittedAnswer: versionSubmissions.answers[questionIndex] ?? "Not Submitted", // Use the question index to fetch the answer
+                    submittedAnswer: versionSubmissions.answers[questionIndex] ?? "Not Submitted",
                     correctAnswer: question.solutions[versionIndex] ?? "Unknown",
-                    grade: versionSubmissions.grade[questionIndex] ?? null, // Use the question index to fetch the grade
+                    grade: versionSubmissions.grade[questionIndex] ?? null,
                     pointsPossible: question.points,
+                    image: question.image_urls[versionIndex] || undefined // Get version-specific image
                 }));
 
                 return {
@@ -139,7 +160,16 @@ export default async function SubmissionReviewPage({ params }: { params: Assignm
     if (!blockScores) {
         blockScores = [0];
     }
-    const totalScore = parseFloat(((blockScores.reduce((acc: number, curr: number) => acc + curr, 0)) / assignmentData.total_points * 100).toFixed(2));
+
+    let totalScore
+
+    if (assignmentData.total_points === 0) {
+        totalScore = 100
+    }
+    else {
+        totalScore = parseFloat(((blockScores.reduce((acc: number, curr: number) => acc + curr, 0)) / assignmentData.total_points * 100).toFixed(2));
+
+    }
 
     const currentDate: Date = new Date();
     const dueDate: Date = new Date(assignmentData.due_date);
@@ -168,18 +198,31 @@ export default async function SubmissionReviewPage({ params }: { params: Assignm
 
             {structuredData.blocks.map((block) => (
                 <div key={block.blockNumber}>
-
                     <h3>Question Block {block.blockNumber}:</h3>
-
-                    {(!block.versions[0]) && (
-                        <p>No submissions for this block...</p>
-                    )}
-
                     {block.versions.map((version) => (
                         <div key={version.version}>
                             <h4>Version {version.version}:</h4>
                             {version.questions.map((question, index) => (
                                 <div key={index}>
+                                    {question.image && (
+                                        <div style={{
+                                            margin: '10px 0',
+                                            maxWidth: '300px',
+                                            border: '1px solid #ddd',
+                                            borderRadius: '4px',
+                                            padding: '4px'
+                                        }}>
+                                            <img
+                                                src={question.image}
+                                                alt={`Question ${index + 1} visual aid`}
+                                                style={{
+                                                    width: '100%',
+                                                    height: 'auto',
+                                                    borderRadius: '4px'
+                                                }}
+                                            />
+                                        </div>
+                                    )}
                                     <p>Question {index + 1}: {question.questionText}</p>
                                     <p>- Submitted Answer: {question.submittedAnswer}</p>
                                     <p>- Correct Answer: {question.correctAnswer}</p>

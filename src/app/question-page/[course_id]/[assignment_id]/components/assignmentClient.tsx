@@ -15,12 +15,15 @@ type Question = {
     points: number;
     solutions: string[];
     feedback: string[];
+    question_image?: string[]; // <-- Add this
 };
+
 
 type Block = {
     block_id: number;
     question_ids: number[];
-    threshold: number;
+    mastery_threshold: number;
+    total_points: number;
 };
 
 interface ClientComponentProps {
@@ -42,18 +45,26 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({ assignmentId, ass
     const [submissionId, setSubId] = useState(0);
     const [showFeedback, setShowFeedback] = useState(false);
     const [percentageCorrect, setPercentageCorrect] = useState(0);
-    const [threshold, setThreshold] = useState(blocks[currentBlock].threshold); //Temporary
+    const [threshold, setThreshold] = useState(blocks[currentBlock].mastery_threshold); //Temporary
     const [userAnswers, setUserAnswers] = useState(
         questions.map(() => ({ answer: '', correct: false }))
     );
+    const [questionImageUrls, setQuestionImageUrls] = useState<string[][]>([]);
 
     // Use the createClient function to initialize a Supabase client
     const supabase = createClient();
 
     useEffect(() => {
         initializeState();
-    }, []);
+    }, [currentBlock, version]);
 
+    useEffect(() => {
+        fetchQuestions();
+    }, [initialized]);
+
+    useEffect(() => {
+
+    }, [showFeedback]);
 
     async function getSubmission() {
         const { data: stateData, error: stateError } = await supabase
@@ -117,24 +128,31 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({ assignmentId, ass
             setCurrentBlock(stateData.current_block);
             setVersion(stateData.current_version);
             setInitialized(true);
-            setThreshold(blocks[currentBlock].threshold)
+
+            const threshold_points = blocks[currentBlock].mastery_threshold;
+            const total_points = blocks[currentBlock].total_points;
+            if (total_points === 0) {
+                setThreshold(0)
+            }
+            else {
+                const thresholdPercent = (threshold_points / total_points) * 100;
+                setThreshold(thresholdPercent)
+            }
         }
     }
 
     async function fetchQuestions() {
-
+        console.log('reached: ', initialized);
         if (initialized) {
             if (!blocks[currentBlock]?.question_ids) {
                 console.error('No question IDs found for current block.');
                 return;
             }
 
-            console.log(currentBlock, "/", blocks[currentBlock].question_ids)
             const { data: fetchedQuestions, error } = await supabase
                 .from("questions")
                 .select()
                 .in('question_id', blocks[currentBlock].question_ids);
-
 
             if (error) {
                 console.error('Error fetching questions:', error.message);
@@ -148,9 +166,35 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({ assignmentId, ass
 
             setQuestions(fetchedQuestions as Question[]);
             setUserAnswers(fetchedQuestions.map(() => ({ answer: '', correct: false })));
-        }
 
+            // --- Generate signed URLs for images ---
+            const BUCKET_NAME = 'question-images'; // adjust if your bucket name is different
+            const SIGNED_URL_EXPIRY = 600; // 10 minutes
+
+            const urls: string[][] = await Promise.all(
+                (fetchedQuestions as Question[]).map(async (q) => {
+                    if (!q.question_image || !Array.isArray(q.question_image)) {
+                        return ['', '', '', ''];
+                    }
+                    return await Promise.all(
+                        [0, 1, 2, 3].map(async (versionIdx) => {
+                            const path = q.question_image?.[versionIdx];
+                            if (path && path.trim() !== '') {
+                                const { data } = await supabase
+                                    .storage
+                                    .from(BUCKET_NAME)
+                                    .createSignedUrl(path, SIGNED_URL_EXPIRY);
+                                return data?.signedUrl || '';
+                            }
+                            return '';
+                        })
+                    );
+                })
+            );
+            setQuestionImageUrls(urls);
+        }
     }
+
 
     async function gradeBlockAndSubmit(
         submittedAnswers: string[],
@@ -183,8 +227,16 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({ assignmentId, ass
         );
 
         // Calculate percentage correct
-        const percentCalc = (totalPointsEarned / totalPossiblePoints) * 100
-        setPercentageCorrect(percentCalc);
+        let percentCalc
+
+        if (totalPossiblePoints === 0) {
+            percentCalc = 0;
+            setPercentageCorrect(0);
+        }
+        else {
+            percentCalc = (totalPointsEarned / totalPossiblePoints) * 100
+            setPercentageCorrect(percentCalc);
+        }
 
         // Prepare data for insertion into Supabase
         const submissionData = {
@@ -356,6 +408,8 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({ assignmentId, ass
         fetchQuestions();
     }, [currentBlock]);
 
+    console.log(percentageCorrect, '<', threshold)
+
     if (!initialized) {
         return <div> Loading... </div>
     }
@@ -373,6 +427,21 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({ assignmentId, ass
                         Question {index + 1} ({question.points} Points):
                         <br />
                         {question.question_body[version]}
+                        {/* Display version-specific image if present */}
+                        {questionImageUrls[index]?.[version] && (
+                            <div style={{ margin: '10px 0' }}>
+                                <img
+                                    src={questionImageUrls[index][version]}
+                                    alt={`Question ${index + 1} visual aid`}
+                                    style={{
+                                        width: '120px',
+                                        height: '120px',
+                                        objectFit: 'cover',
+                                        borderRadius: '4px'
+                                    }}
+                                />
+                            </div>
+                        )}
 
                         <input
                             type="text"
@@ -394,6 +463,7 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({ assignmentId, ass
                         }
                     </li>
                 ))}
+
             </ul>
 
             {(!showFeedback) &&
