@@ -22,18 +22,20 @@ export default async function InstructorDashboard({ params }: { params: CoursePa
         .eq('course_id', course_id)
         .single();
 
-    if (courseError || !course) {
-        return <div>Error fetching course information.</div>;
+    if (courseError) {
+        console.error("Error fetching course information: ", courseError.message);
+        return null;
     }
 
     // Fetch assignments
     const { data: assignments, error: assignmentError } = await supabase
         .from('assignments_list')
-        .select('assignment_id, assignment_name, due_date, assigned, open')
+        .select()
         .eq('course_id', course_id);
 
-    if (assignmentError || !assignments || assignments.length === 0) {
-        return <div>No assignments found for this course.</div>;
+    if (assignmentError) {
+        console.error("Problem retrieving assignments: ", assignmentError.message);
+        return null;
     }
 
     return (

@@ -9,6 +9,7 @@ interface SubmittedQuestion {
     correctAnswer: string | null;
     pointsPossible: number;
     questionFeedback: string | null;
+    image: string; // Only one image per version
 }
 
 interface Version {
@@ -25,23 +26,30 @@ interface StructuredData {
     blocks: Block[];
 }
 
-export default async function AssignmentPreviewPage({ params }: { params: AssignmentParams }) {
+interface DBQuestion {
+    question_id: number;
+    question_body: string[];
+    points: number;
+    solutions: string[];
+    feedback: string[];
+    question_image?: string[];
+}
 
+export default async function AssignmentPreviewPage({ params }: { params: AssignmentParams }) {
     // Create Supabase connection
     const supabase = await createClient();
-    const { course_id, assignment_id } = await params;
+    const { course_id, assignment_id } = params;
 
     const { data: userData, error: authError } = await supabase.auth.getUser();
     if (authError || !userData?.user) {
         redirect('/login');
-        return null; // Prevent further execution
+        return null;
     }
 
     // Check for Instructor
     const { data: instructorID, error: notInstructor } = await supabase
         .from("instructors")
         .select("instructor_id");
-
     if (notInstructor || !instructorID) {
         return <div> Access Denied </div>;
     }
@@ -52,7 +60,6 @@ export default async function AssignmentPreviewPage({ params }: { params: Assign
         .select('assignment_name, due_date, total_points')
         .eq('assignment_id', assignment_id)
         .single();
-
     if (!assignmentData) {
         return <div> Error Retrieving Assignment Data </div>;
     }
@@ -62,35 +69,64 @@ export default async function AssignmentPreviewPage({ params }: { params: Assign
         .from("question_blocks")
         .select('block_id, block_number, question_ids')
         .eq('assignment_id', assignment_id);
-
     if (!blocks) {
         return <div> Error Retrieving Question Blocks </div>;
     }
 
-    const questionIds = blocks.reduce((acc, block) => acc.concat(block.question_ids), []);
+    const questionIds = blocks.reduce((acc: number[], block: any) => acc.concat(block.question_ids), []);
 
     // Fetch questions
     const { data: questions } = await supabase
         .from("questions")
-        .select('question_id, question_body, points, solutions, feedback')
+        .select('question_id, question_body, points, solutions, feedback, question_image')
         .in('question_id', questionIds);
-
     if (!questions) {
         return <div> Error Retrieving Questions </div>;
     }
 
+    // Generate signed URLs for private bucket images
+    const SIGNED_URL_EXPIRY = 60 * 10; // 10 minutes
+    const BUCKET_NAME = 'question-images'; // Change if your bucket name is different
+
+    // For each question, generate signed URLs for all images
+    const questionsWithImages: (DBQuestion & { image_urls: string[] })[] = await Promise.all(
+        (questions as DBQuestion[]).map(async (question) => {
+            // Initialize with empty strings to preserve indices
+            const image_urls = Array(4).fill(''); // Assuming 4 versions
+            
+            if (question.question_image && Array.isArray(question.question_image)) {
+                // Process all 4 potential image slots
+                await Promise.all(question.question_image.map(async (path, index) => {
+                    if (path?.trim()) {
+                        const { data } = await supabase.storage
+                            .from(BUCKET_NAME)
+                            .createSignedUrl(`private/${path.replace(/^private\//, '')}`, SIGNED_URL_EXPIRY);
+                        if (data?.signedUrl) {
+                            image_urls[index] = data.signedUrl;
+                        }
+                    }
+                }));
+            }
+            
+            return { ...question, image_urls };
+        })
+    );
+    
+
     // Create a structured data object for rendering
     const structuredData: StructuredData = {
-        blocks: blocks.map((block) => {
-            const blockQuestions = questions.filter((question) => block.question_ids.includes(question.question_id));
+        blocks: blocks.map((block: any) => {
+            const blockQuestions = questionsWithImages.filter((question) =>
+                block.question_ids.includes(question.question_id)
+            );
 
             const versions: Version[] = Array.from({ length: 4 }, (_, versionIndex) => {
-
                 const versionQuestions: SubmittedQuestion[] = blockQuestions.map((question) => ({
-                    questionText: question.question_body[versionIndex] ?? "Unknown Question",
-                    correctAnswer: question.solutions[versionIndex] ?? "Unknown",
+                    questionText: question.question_body?.[versionIndex] ?? "Unknown Question",
+                    correctAnswer: question.solutions?.[versionIndex] ?? "Unknown",
                     pointsPossible: question.points,
-                    questionFeedback: question.feedback[versionIndex] ?? "N/A"
+                    questionFeedback: question.feedback?.[versionIndex] ?? "N/A",
+                    image: question.image_urls?.[versionIndex] || '' // Single image per version
                 }));
 
                 return {
@@ -105,6 +141,9 @@ export default async function AssignmentPreviewPage({ params }: { params: Assign
             };
         }),
     };
+
+
+
 
     return (
         <div>
@@ -123,12 +162,33 @@ export default async function AssignmentPreviewPage({ params }: { params: Assign
                             {version.questions.map((question, index) => (
                                 <div key={index}>
                                     <p> Question {index + 1}: {question.questionText} </p>
+                                    {/* Display image if present */}
+                                    {question.image && (
+                                        <div style={{
+                                            display: 'flex',
+                                            gap: '8px',
+                                            margin: '10px 0'
+                                        }}>
+                                            <img
+                                                key={index}
+                                                src={question.image}
+                                                alt={`Question ${index + 1} visual aid`}
+                                                style={{
+                                                    width: '120px',
+                                                    height: '120px',
+                                                    objectFit: 'cover',
+                                                    borderRadius: '4px'
+                                                }}
+                                            />
+                                        </div>
+                                    )}
                                     <p> Correct Answer: {question.correctAnswer} </p>
                                     <p> Points: {question.pointsPossible} </p>
                                     <p> Feedback: {question.questionFeedback}</p>
                                     <p> ----- </p>
                                 </div>
                             ))}
+
                             <p> ----------------------------------------</p>
                         </div>
                     ))}
@@ -138,7 +198,3 @@ export default async function AssignmentPreviewPage({ params }: { params: Assign
         </div>
     );
 }
-
-
-
-

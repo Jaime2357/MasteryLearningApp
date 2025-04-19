@@ -3,14 +3,15 @@ import { createClient } from '@/utils/supabase/server';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
-type AssignmentParams = {course_id: string, assignment_id: string};
+type AssignmentParams = { course_id: string, assignment_id: string };
 
-// interface Question {
-//   question_id: string;
-//   question_body: string[]; // Array of question texts
-//   points: number;
-//   solutions: string[]; // Array of correct answers
-// }
+interface Question {
+    question_id: string;
+    question_body: string[];
+    points: number;
+    solutions: string[];
+    question_image?: string[]; // Added image paths
+}
 
 interface SubmittedQuestion {
     questionText: string;
@@ -18,6 +19,7 @@ interface SubmittedQuestion {
     correctAnswer: string | null;
     grade: number | null;
     pointsPossible: number;
+    image?: string; // Single image per question version
 }
 
 interface Version {
@@ -113,12 +115,31 @@ export default async function AssignmentResultPage({ params }: { params: Assignm
     // Fetch questions
     const { data: questions } = await supabase
         .from("questions")
-        .select('question_id, question_body, points, solutions')
+        .select('question_id, question_body, points, solutions, question_image')
         .in('question_id', questionIds);
 
-    if (!questions) {
-        return <div> Error Retrieving Questions </div>;
-    }
+    // Generate signed URLs for images
+    const BUCKET_NAME = 'question-images'; // Replace with your bucket name
+    const SIGNED_URL_EXPIRY = 600; // 10 minutes
+
+    const questionsWithImages = await Promise.all(
+        (questions || []).map(async (question) => {
+            const image_urls: string[] = [];
+            if (question.question_image && Array.isArray(question.question_image)) {
+                for (const path of question.question_image) {
+                    if (path?.trim()) {
+                        const { data } = await supabase.storage
+                            .from(BUCKET_NAME)
+                            .createSignedUrl(path, SIGNED_URL_EXPIRY);
+                        if (data?.signedUrl) {
+                            image_urls.push(data.signedUrl);
+                        }
+                    }
+                }
+            }
+            return { ...question, image_urls };
+        })
+    );
 
     // Fetch block submissions
     const { data: blockSubmissions } = await supabase
@@ -134,19 +155,20 @@ export default async function AssignmentResultPage({ params }: { params: Assignm
     const structuredData: StructuredData = {
         blocks: blocks.map((block) => {
             const blockSubmissionVersions = blockSubmissions.filter((submission) => submission.block_id === block.block_id);
-            const blockQuestions = questions.filter((question) => block.question_ids.includes(question.question_id));
+            const blockQuestions = questionsWithImages.filter((question) => block.question_ids.includes(question.question_id));
 
             const versions: Version[] = Array.from({ length: Math.max(...blockSubmissionVersions.map(s => s.block_version)) + 1 }, (_, versionIndex) => {
-                const versionSubmissions = blockSubmissionVersions.find((submission) => submission.block_version === versionIndex);
+                const versionSubmissions = blockSubmissions.find((submission) => submission.block_version === versionIndex);
 
                 if (!versionSubmissions) return { version: versionIndex + 1, questions: [] };
 
                 const versionQuestions: SubmittedQuestion[] = blockQuestions.map((question, questionIndex) => ({
                     questionText: question.question_body[versionIndex] ?? "Unknown Question",
-                    submittedAnswer: versionSubmissions.answers[questionIndex] ?? "Not Submitted", // Use the question index to fetch the answer
+                    submittedAnswer: versionSubmissions.answers[questionIndex] ?? "Not Submitted",
                     correctAnswer: question.solutions[versionIndex] ?? "Unknown",
-                    grade: versionSubmissions.grade[questionIndex] ?? null, // Use the question index to fetch the grade
+                    grade: versionSubmissions.grade[questionIndex] ?? null,
                     pointsPossible: question.points,
+                    image: question.image_urls[versionIndex] // Get version-specific image
                 }));
 
                 return {
@@ -162,7 +184,15 @@ export default async function AssignmentResultPage({ params }: { params: Assignm
         }),
     };
 
-    const totalScore = parseFloat(((submissionData.block_scores.reduce((acc: number, curr: number) => acc + curr, 0)) / assignmentData.total_points * 100).toFixed(2));
+    let totalScore
+
+    if (assignmentData.total_points <= 0) {
+        totalScore = 100
+    }
+    else {
+        totalScore = parseFloat(((submissionData.block_scores.reduce((acc: number, curr: number) => acc + curr, 0)) / assignmentData.total_points * 100).toFixed(2));
+
+    }
 
     const currentDate: Date = new Date();
     const dueDate: Date = new Date(assignmentData.due_date);
@@ -175,7 +205,7 @@ export default async function AssignmentResultPage({ params }: { params: Assignm
     return (
         <div>
             <div>
-            <Link href={`/student-dashboard/${course_id}`}> Back </Link>
+                <Link href={`/student-dashboard/${course_id}`}> Back </Link>
             </div>
             <h2>{assignmentData.assignment_name}</h2>
             <h3> Grade: {totalScore}% </h3>
@@ -197,6 +227,20 @@ export default async function AssignmentResultPage({ params }: { params: Assignm
                             <h4>Version {version.version}:</h4>
                             {version.questions.map((question, index) => (
                                 <div key={index}>
+                                    {question.image && (
+                                        <div style={{ margin: '10px 0' }}>
+                                            <img
+                                                src={question.image}
+                                                alt={`Question ${index + 1} visual aid`}
+                                                style={{
+                                                    maxWidth: '200px',
+                                                    maxHeight: '200px',
+                                                    objectFit: 'cover',
+                                                    borderRadius: '4px'
+                                                }}
+                                            />
+                                        </div>
+                                    )}
                                     <p>Question {index + 1}: {question.questionText}</p>
                                     <p>- Submitted Answer: {question.submittedAnswer}</p>
                                     <p>- Correct Answer: {question.correctAnswer}</p>

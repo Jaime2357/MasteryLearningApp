@@ -99,6 +99,9 @@ export default async function AssignmentGradeList({ params }: { params: CoursePa
         if (!submission.block_scores) {
             return 0;
         }
+        if(assignment.total_points === 0){
+            return 100;
+        }
         return parseFloat(((submission.block_scores.reduce((acc: number, curr: number) => acc + curr, 0)) / assignment.total_points * 100).toFixed(2));
 
     }
@@ -120,7 +123,7 @@ export default async function AssignmentGradeList({ params }: { params: CoursePa
                             </Link>
                             {submission.submission ? (
                                 <>
-                                    <p>Completion: {getPercentage(assignment.block_count, submission.submission.blocks_complete)}</p>
+                                    <p>Completion: {getPercentage(assignment.block_count, submission.submission.blocks_complete)}%</p>
                                     <p>Total Score: {getTotalScore(submission.submission, assignment)}</p>
                                     <p>Status: {submission.submission.finished ? 'Finished'
                                         : `In Progress (${submission.submission.blocks_complete}/${assignment.block_count} Blocks)`}</p>
