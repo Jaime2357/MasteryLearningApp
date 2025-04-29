@@ -4,6 +4,8 @@ import { createClient } from "@/utils/supabase/client";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { logout } from '../../actions'
+
 
 type Course = {
     course_id: string;
@@ -54,9 +56,9 @@ const CourseSelectionComponent: React.FC<ClientComponentProps> = ({ id, instruct
                 .eq('student_id', id)
                 .eq('course_id', courseId.course_id);
 
-                console.log('Student ID: ', id)
-                console.log('Course ID: ', courseId.course_id)
-                console.log(enrollmentCheck)
+            console.log('Student ID: ', id)
+            console.log('Course ID: ', courseId.course_id)
+            console.log(enrollmentCheck)
 
             if (enrollmentCheckError) {
                 console.error('Problem checking enrollments', enrollmentCheckError.message);
@@ -95,6 +97,10 @@ const CourseSelectionComponent: React.FC<ClientComponentProps> = ({ id, instruct
     return (
 
         <div>
+            <button onClick={logout}>
+                Sign Out
+            </button>
+            
             {(instructor) &&
                 <div>
                     <h1> Courses: </h1>
