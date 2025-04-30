@@ -12,6 +12,8 @@ interface SubmittedQuestion {
     image: string;
     feedbackImage: string;
     feedbackVideo: string;
+    MCQOptions?: string[];
+    isMCQ?: boolean;
 }
 
 interface Version {
@@ -37,6 +39,14 @@ interface DBQuestion {
     question_image?: string[];
     feedback_images?: string[];
     feedback_videos?: string[];
+    MCQ_options?: string[][];
+}
+
+interface DBBlock {
+    block_id: number;
+    block_number: number;
+    question_ids: number[];
+    created_at?: string;
 }
 
 const FeedbackMedia = ({ image, video }: { image?: string; video?: string }) => {
@@ -57,7 +67,6 @@ const FeedbackMedia = ({ image, video }: { image?: string; video?: string }) => 
                     style={{ maxWidth: '200px', maxHeight: '200px', borderRadius: '4px' }}
                 />
             )}
-
             {video && (
                 isYouTube ? (
                     <div className="video-responsive">
@@ -80,7 +89,6 @@ const FeedbackMedia = ({ image, video }: { image?: string; video?: string }) => 
 };
 
 export default async function AssignmentPreviewPage({ params }: { params: AssignmentParams }) {
-    // Create Supabase connection
     const supabase = await createClient();
     const { course_id, assignment_id } = params;
 
@@ -90,7 +98,6 @@ export default async function AssignmentPreviewPage({ params }: { params: Assign
         return null;
     }
 
-    // Check for Instructor
     const { data: instructorID, error: notInstructor } = await supabase
         .from("instructors")
         .select("instructor_id");
@@ -98,7 +105,6 @@ export default async function AssignmentPreviewPage({ params }: { params: Assign
         return <div> Access Denied </div>;
     }
 
-    // Fetch general assignment data
     const { data: assignmentData } = await supabase
         .from("assignments_list")
         .select('assignment_name, due_date, total_points')
@@ -112,30 +118,29 @@ export default async function AssignmentPreviewPage({ params }: { params: Assign
     const { data: blocks } = await supabase
         .from("question_blocks")
         .select('block_id, block_number, question_ids')
-        .eq('assignment_id', assignment_id);
+        .eq('assignment_id', assignment_id) as { data: DBBlock[] | null };
     if (!blocks) {
         return <div> Error Retrieving Question Blocks </div>;
     }
 
-    const questionIds = blocks.reduce((acc: number[], block: any) => acc.concat(block.question_ids), []);
+    const questionIds = blocks.reduce((acc: number[], block: DBBlock) => acc.concat(block.question_ids), []);
 
     // Fetch questions
     const { data: questions } = await supabase
         .from("questions")
         .select()
-        .in('question_id', questionIds);
+        .in('question_id', questionIds) as { data: DBQuestion[] | null };
     if (!questions) {
         return <div> Error Retrieving Questions </div>;
     }
 
     // Generate signed URLs for private bucket images
     const SIGNED_URL_EXPIRY = 60 * 10; // 10 minutes
-    const BUCKET_NAME = 'question-images'; // Change if your bucket name is different
+    const BUCKET_NAME = 'question-images';
 
     // For each question, generate signed URLs for all images
     const questionsWithImages = await Promise.all(
         (questions as DBQuestion[]).map(async (question) => {
-            // Existing question image processing
             const question_image_urls = Array(4).fill('');
             if (question.question_image) {
                 await Promise.all(question.question_image.map(async (path, index) => {
@@ -150,7 +155,6 @@ export default async function AssignmentPreviewPage({ params }: { params: Assign
                 }));
             }
 
-            // Process feedback images
             const feedback_image_urls = Array(4).fill('');
             if (question.feedback_images) {
                 await Promise.all(question.feedback_images.map(async (path, index) => {
@@ -174,24 +178,59 @@ export default async function AssignmentPreviewPage({ params }: { params: Assign
         })
     );
 
-
     // Create a structured data object for rendering
     const structuredData: StructuredData = {
-        blocks: blocks.map((block: any) => {
+        blocks: blocks.map((block: DBBlock) => {
             const blockQuestions = questionsWithImages.filter((question) =>
                 block.question_ids.includes(question.question_id)
             );
 
             const versions: Version[] = Array.from({ length: 4 }, (_, versionIndex) => {
-                const versionQuestions: SubmittedQuestion[] = blockQuestions.map((question) => ({
-                    questionText: question.question_body?.[versionIndex] ?? "Unknown Question",
-                    correctAnswer: question.solutions?.[versionIndex] ?? "Unknown",
-                    pointsPossible: question.points,
-                    questionFeedback: question.feedback?.[versionIndex] ?? "N/A",
-                    image: question.question_image_urls?.[versionIndex] || '',
-                    feedbackImage: question.feedback_image_urls?.[versionIndex] || '',
-                    feedbackVideo: question.feedback_videos?.[versionIndex] || ''
-                }));
+                const versionQuestions: SubmittedQuestion[] = blockQuestions.map((question) => {
+                    // Check if MCQ_options exists at all before trying to access it
+                    const hasMCQOptions = Array.isArray(question.MCQ_options) && question.MCQ_options.length > 0;
+
+                    // Get raw options if they exist for this version
+                    const MCQOptionsRaw = hasMCQOptions && question.MCQ_options[versionIndex]
+                        ? question.MCQ_options[versionIndex]
+                        : [];
+
+                    // Filter non-empty options
+                    const MCQOptions = MCQOptionsRaw.filter(opt => opt && opt.trim() !== '');
+
+                    // Debug - log what we're finding
+                    console.log('Question ID:', question.question_id);
+                    console.log('Has MCQ options:', hasMCQOptions);
+                    console.log('MCQ options for version:', MCQOptionsRaw);
+                    console.log('Filtered options:', MCQOptions);
+                    console.log('Is MCQ?', MCQOptions.length >= 2);
+
+                    // More lenient MCQ detection
+                    const isMCQ = MCQOptions.length >= 2;
+
+                    // Map solution index to text (with better error handling)
+                    let correctAnswer = question.solutions?.[versionIndex] ?? "Unknown";
+                    if (isMCQ && correctAnswer !== "Unknown") {
+                        const idx = Number(correctAnswer);
+                        if (!isNaN(idx) && MCQOptionsRaw[idx]?.trim()) {
+                            correctAnswer = `${String.fromCharCode(65 + idx)}. ${MCQOptionsRaw[idx]}`;
+                        } else {
+                            correctAnswer = '[No valid option selected]';
+                        }
+                    }
+
+                    return {
+                        questionText: question.question_body?.[versionIndex] ?? "Unknown Question",
+                        correctAnswer,
+                        pointsPossible: question.points,
+                        questionFeedback: question.feedback?.[versionIndex] ?? "N/A",
+                        image: question.question_image_urls?.[versionIndex] || '',
+                        feedbackImage: question.feedback_image_urls?.[versionIndex] || '',
+                        feedbackVideo: question.feedback_videos?.[versionIndex] || '',
+                        MCQOptions,
+                        isMCQ,
+                    };
+                });
 
                 return {
                     version: versionIndex + 1,
@@ -207,7 +246,6 @@ export default async function AssignmentPreviewPage({ params }: { params: Assign
     };
 
     return (
-        
         <div>
             <div>
                 <Link href={`/instructor-dashboard/${course_id}`}> Back </Link>
@@ -231,11 +269,25 @@ export default async function AssignmentPreviewPage({ params }: { params: Assign
                                             style={{ width: '120px', height: '120px', objectFit: 'cover' }}
                                         />
                                     )}
-                                    <p>Correct Answer: {question.correctAnswer}</p>
+
+                                    {question.isMCQ && question.MCQOptions && question.MCQOptions.length > 0 && (
+                                        <div>
+                                            <b>Options:</b>
+                                            <ul>
+                                                {question.MCQOptions.map((opt, optIdx) => (
+                                                    <li key={optIdx}>
+                                                        {String.fromCharCode(65 + optIdx)}. {opt}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+                                    <p>
+                                        <b>Correct Answer:</b> {question.correctAnswer}
+                                    </p>
                                     <p>Points: {question.pointsPossible}</p>
                                     <p>Feedback: {question.questionFeedback}</p>
 
-                                    {/* Add feedback media */}
                                     {(question.feedbackImage || question.feedbackVideo) && (
                                         <div style={{ marginTop: '1rem' }}>
                                             <h5>Feedback Media:</h5>
@@ -248,11 +300,10 @@ export default async function AssignmentPreviewPage({ params }: { params: Assign
                                     <p>-----</p>
                                 </div>
                             ))}
-
                             <p> ----------------------------------------</p>
                         </div>
                     ))}
-                    <hr></hr>
+                    <hr />
                 </div>
             ))}
         </div>

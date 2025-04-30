@@ -53,7 +53,7 @@ const AssignmentEditorComponent: React.FC<ClientComponentProps> = ({ instructor_
     const [currentBlockIndex, setCurrentBlockIndex] = useState<number>(0);
     const [assignmentDraft, setAssignmentDraft] = useState<AssignmentDraft>();
     const [searchQuery, setSearchQuery] = useState<string>('');
-    
+
 
     useEffect(() => {
         getQuestions();
@@ -114,21 +114,18 @@ const AssignmentEditorComponent: React.FC<ClientComponentProps> = ({ instructor_
             setAssignmentDraft(retrievedDraft);
             setDueDate(retrievedDraft.due_date);
             setAssignmentName(retrievedDraft.assignment_name)
+            setAssignedDate(retrievedDraft.assigned_date)
+            setOpenDate(retrievedDraft.open_date)
+            setCloseDate(retrievedDraft.close_date)
         }
     }
 
     const handleQuestionSelection = (questionId: number) => {
-        setSelectedQuestionIds(prev => 
+        setSelectedQuestionIds(prev =>
             prev.includes(questionId)
                 ? prev.filter(id => id !== questionId)
                 : [...prev, questionId]
         );
-    };
-
-    const removeQuestionFromBlock = (blockIndex: number, questionId: number) => {
-        setSelectedIds(prev => prev.map((block, index) => 
-            index === blockIndex ? block.filter(id => id !== questionId) : block
-        ));
     };
 
     // Insert new assignment details into Supabase
@@ -167,6 +164,9 @@ const AssignmentEditorComponent: React.FC<ClientComponentProps> = ({ instructor_
             assigned: false,
             open: false,
             due_date: dueDate,
+            assigned_date: assigned_date,
+            open_date: open_date,
+            close_date: close_date,
             total_points: totalPoints,
             block_count: blockCount,
             instructor_id,
@@ -454,7 +454,7 @@ const AssignmentEditorComponent: React.FC<ClientComponentProps> = ({ instructor_
             <input type="text" value={assignmentName} onChange={(e) => setAssignmentName(e.target.value)} />
             <div>
                 <h2>Due Date:</h2>
-                {assignmentDraft && <p>{new Date(assignmentDraft.due_date).toLocaleString()}</p>}
+                {assignmentDraft && <p>{new Date(assignmentDraft.due_date).toString()}</p>}
             </div>
             <input
                 type="datetime-local"
@@ -463,27 +463,40 @@ const AssignmentEditorComponent: React.FC<ClientComponentProps> = ({ instructor_
             <div>
                 <h2>Assigning Date:</h2>
                 {assignmentDraft?.assigned_date && <p>{new Date(assignmentDraft.assigned_date).toLocaleString()}</p>}
+                <input
+                    type="datetime-local"
+                    value={assigned_date ? assigned_date.toISOString().slice(0, 16) : ''}
+                    onChange={e => setAssignedDate(new Date(e.target.value))}
+                />
             </div>
-            <input
-                type="datetime-local"
-                onChange={(e) => setAssignedDate(new Date(e.target.value))}
-            />
-            <div>
-                <h2>Opening Date:</h2>
-                {assignmentDraft?.open_date && <p>{new Date(assignmentDraft.open_date).toLocaleString()}</p>}
-            </div>
-            <input
-                type="datetime-local"
-                onChange={(e) => setOpenDate(new Date(e.target.value))}
-            />
-            <div>
-                <h2>Closing Date:</h2>
-                {assignmentDraft?.close_date && <p>{new Date(assignmentDraft.close_date).toLocaleString()}</p>}
-            </div>
-            <input
-                type="datetime-local"
-                onChange={(e) => setCloseDate(new Date(e.target.value))}
-            />
+
+            {(dueDate && assigned_date) &&
+                <div>
+                    <h2>Opening Date:</h2>
+                    {assignmentDraft?.open_date && <p>{new Date(assignmentDraft.open_date).toLocaleString()}</p>}
+                    <input
+                        type="datetime-local"
+                        value={open_date ? open_date.toISOString().slice(0, 16) : ''}
+                        onChange={e => setOpenDate(new Date(e.target.value))}
+                        min={assigned_date instanceof Date ? assigned_date.toISOString().slice(0, 16) : ''}
+                    />
+                </div>
+
+            }
+
+            {(dueDate && assigned_date && open_date) &&
+                <div>
+                    <h2>Closing Date:</h2>
+                    {assignmentDraft?.close_date && <p>{new Date(assignmentDraft.close_date).toLocaleString()}</p>}
+                    <input
+                        type="datetime-local"
+                        value={close_date ? close_date.toISOString().slice(0, 16) : ''}
+                        onChange={e => setCloseDate(new Date(e.target.value))}
+                        min={open_date instanceof Date ? open_date.toISOString().slice(0, 16) : ''}
+                    />
+                </div>
+            }
+
 
             {blockPoints && <h3>Total Points: {totalPoints}</h3>}
             {(!assignmentId

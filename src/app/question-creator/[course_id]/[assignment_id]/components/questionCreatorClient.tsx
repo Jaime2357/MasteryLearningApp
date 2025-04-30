@@ -1,10 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
 
 interface ClientComponentProps {
     instructor_id: string;
@@ -15,7 +14,6 @@ interface ClientComponentProps {
 
 const YouTubeEmbed: React.FC<{ url: string }> = ({ url }) => {
     const videoId = url.match(/(?:v=|\/)([0-9A-Za-z_-]{11}).*/)?.[1];
-
     return (
         <iframe
             width="560"
@@ -28,19 +26,21 @@ const YouTubeEmbed: React.FC<{ url: string }> = ({ url }) => {
 };
 
 const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({ instructor_id, course_id, assignment_id, onUpload = () => { } }) => {
-
-    // Use the createClient function to initialize a Supabase client
     const supabase = createClient();
     const router = useRouter();
 
-    // variables to store solutions
+    // New: Question type state
+    const [questionType, setQuestionType] = useState<'FRQ' | 'MCQ'>('FRQ');
+
     const [questionBodies, setQuestions] = useState<string[]>(['', '', '', '']);
-    const [solutions, setSolutions] = useState<string[]>(['', '', '', ''])
+    const [solutions, setSolutions] = useState<string[]>(['', '', '', '']);
     const [points, setPoints] = useState<number>(0);
-    const [feedbackBodies, setFeedback] = useState<string[]>(['', '', '', ''])
+    const [feedbackBodies, setFeedback] = useState<string[]>(['', '', '', '']);
+    const [mcqOptions, setMcqOptions] = useState<string[][]>(
+        Array(4).fill(0).map(() => Array(4).fill(''))
+    );
 
     // Image Uploading
-    // Image-related state
     const [questionImages, setQuestionImages] = useState<string[]>(['', '', '', '']);
     const [uploading, setUploading] = useState<boolean[]>([false, false, false, false]);
     const [previewUrls, setPreviewUrls] = useState<string[]>(['', '', '', '']);
@@ -51,31 +51,24 @@ const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({ instructor_i
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>, versionIndex: number) => {
         const file = event.target.files?.[0];
         if (!file) return;
-
-        // Update uploading state for this version
         const newUploading = [...uploading];
         newUploading[versionIndex] = true;
         setUploading(newUploading);
 
-        // Create a unique file path
         const fileExt = file.name.split('.').pop();
         const fileName = `${Date.now()}_v${versionIndex + 1}_${Math.random().toString(36).substring(2, 15)}`;
         const filePath = `question_images/private/${fileName}.${fileExt}`;
 
         try {
-            // Upload to Supabase Storage
-            const { data, error } = await supabase.storage
-                .from("question-images") // Use your actual bucket name
+            const { error } = await supabase.storage
+                .from("question-images")
                 .upload(filePath, file);
-
             if (error) throw error;
 
-            // Update image paths state
             const newImagePaths = [...questionImages];
             newImagePaths[versionIndex] = filePath;
             setQuestionImages(newImagePaths);
 
-            // Create preview URL
             const { data: urlData } = supabase.storage
                 .from("question-images")
                 .getPublicUrl(filePath);
@@ -84,20 +77,17 @@ const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({ instructor_i
             newPreviewUrls[versionIndex] = urlData.publicUrl;
             setPreviewUrls(newPreviewUrls);
 
-            // Call the onUpload callback
             onUpload(filePath);
         } catch (error) {
             console.error("Error uploading image:", error);
             alert(`Error uploading image for Version ${versionIndex + 1}`);
         } finally {
-            // Reset uploading state
             const resetUploading = [...uploading];
             resetUploading[versionIndex] = false;
             setUploading(resetUploading);
         }
     };
 
-    // Remove an image
     const removeImage = (versionIndex: number) => {
         const newImagePaths = [...questionImages];
         newImagePaths[versionIndex] = '';
@@ -108,8 +98,86 @@ const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({ instructor_i
         setPreviewUrls(newPreviewUrls);
     };
 
-    async function createQuestion() {
+    const validateQuestion = () => {
+        if (questionType === 'MCQ') {
+            for (let versionIndex = 0; versionIndex < 4; versionIndex++) {
+                const validOptions = mcqOptions[versionIndex].filter(opt => opt.trim() !== '');
+                
+                // Validate minimum options
+                if (validOptions.length < 2) {
+                    alert(`Version ${versionIndex + 1} needs at least 2 options`);
+                    return false;
+                }
 
+                // Validate no empty options between filled ones
+                let foundEmpty = false;
+                for (const option of mcqOptions[versionIndex]) {
+                    if (option.trim() === '') {
+                        foundEmpty = true;
+                    } else if (foundEmpty) {
+                        alert(`Version ${versionIndex + 1} has empty options between filled ones`);
+                        return false;
+                    }
+                }
+
+                // Validate solution selection
+                const selectedSolution = solutions[versionIndex];
+                if (!selectedSolution || parseInt(selectedSolution) >= validOptions.length) {
+                    alert(`Please select a valid solution for Version ${versionIndex + 1}`);
+                    return false;
+                }
+            }
+        }
+        return true;
+    };
+
+    const handleMcqOptionChange = (value: string, versionIndex: number, optionIndex: number) => {
+        setMcqOptions(prev => {
+            const newOptions = [...prev];
+            newOptions[versionIndex] = [...newOptions[versionIndex]];
+            newOptions[versionIndex][optionIndex] = value;
+
+            // Clear subsequent options when emptying a middle option
+            if (value.trim() === '' && optionIndex < 3) {
+                for (let i = optionIndex + 1; i < 4; i++) {
+                    newOptions[versionIndex][i] = '';
+                }
+            }
+            return newOptions;
+        });
+    };
+
+    const addMcqOption = (versionIndex: number) => {
+        setMcqOptions(prev => {
+            const newOptions = [...prev];
+            const firstEmptyIndex = newOptions[versionIndex].findIndex(opt => opt.trim() === '');
+            if (firstEmptyIndex !== -1) {
+                newOptions[versionIndex][firstEmptyIndex] = ' ';
+            }
+            return newOptions;
+        });
+    };
+
+    const removeMcqOption = (versionIndex: number, optionIndex: number) => {
+        setMcqOptions(prev => {
+            const newOptions = [...prev];
+            newOptions[versionIndex] = newOptions[versionIndex].map((opt, idx) => 
+                idx >= optionIndex ? '' : opt
+            );
+            return newOptions;
+        });
+
+        setSolutions(prev => {
+            const newSolutions = [...prev];
+            if (parseInt(newSolutions[versionIndex]) >= optionIndex) {
+                newSolutions[versionIndex] = '';
+            }
+            return newSolutions;
+        });
+    };
+
+    async function createQuestion() {
+        if (!validateQuestion()) return;
         const newQuestion = {
             question_body: questionBodies,
             points: points,
@@ -118,26 +186,23 @@ const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({ instructor_i
             creator_id: instructor_id,
             question_image: questionImages,
             feedback_images: feedbackImages,
-            feedback_videos: feedbackVideos
-        }
-        const { data: verif, error: questionCreationError } = await supabase
+            feedback_videos: feedbackVideos,
+            MCQ_options: questionType === 'MCQ' ? mcqOptions : null
+        };
+        const { error: questionCreationError } = await supabase
             .from('questions')
             .insert([newQuestion])
             .select()
             .single();
 
-        console.log("Inserted Question: ", verif);
-
         if (questionCreationError) {
-            console.error("Problem Creating New Question");
-        }
-        else {
+            console.error("Problem Creating New Question: ", questionCreationError.message);
+        } else {
             alert("success");
-            router.push(`/assignment-editor/${course_id}/${assignment_id}`)
+            router.push(`/assignment-editor/${course_id}/${assignment_id}`);
         }
     }
 
-    // Helper Function to update question body input
     const saveQuestionBody = (questionBody: string, index: number) => {
         setQuestions((prev) => {
             const newQuestionBodies = [...prev];
@@ -146,7 +211,7 @@ const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({ instructor_i
         });
     };
 
-    // Helper Function to update solution input
+    // New: For MCQ, save the index as string; for FRQ, save the text
     const saveSolution = (solution: string, index: number) => {
         setSolutions((prev) => {
             const newSolutions = [...prev];
@@ -155,7 +220,6 @@ const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({ instructor_i
         });
     };
 
-    // Helper Function to update feedback input
     const saveFeedback = (feedback: string, index: number) => {
         setFeedback((prev) => {
             const newFeedbackBodies = [...prev];
@@ -210,18 +274,24 @@ const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({ instructor_i
         });
     };
 
-    // Render a version block with its image upload controls
-    const renderVersionBlock = (versionIndex: number) => (
-        <div key={versionIndex} className="version-block" style={{ marginBottom: "2rem", padding: "1rem", border: "1px solid #ddd", borderRadius: "8px" }}>
-            <h1>Version {versionIndex + 1}</h1>
+    // --- UI for each version ---
+    const renderVersionBlock = (versionIndex: number) => {
+        const currentOptions = mcqOptions[versionIndex];
+        const validOptions = currentOptions.filter(opt => opt.trim() !== '');
+        const showAddButton = validOptions.length < 4 && currentOptions[validOptions.length] === '';
 
-            <h2>Question:</h2>
-            <input
-                type="text"
-                value={questionBodies[versionIndex]}
-                onChange={(e) => saveQuestionBody(e.target.value, versionIndex)}
-                style={{ width: "100%", padding: "8px", marginBottom: "10px" }}
-            />
+        return (
+            <div key={versionIndex} className="version-block" style={{ marginBottom: "2rem", padding: "1rem", border: "1px solid #ddd", borderRadius: "8px" }}>
+                <h1>Version {versionIndex + 1}</h1>
+
+                <h2>Question:</h2>
+                <input
+                    type="text"
+                    value={questionBodies[versionIndex]}
+                    onChange={(e) => saveQuestionBody(e.target.value, versionIndex)}
+                    style={{ width: "100%", padding: "8px", marginBottom: "10px" }}
+                />
+
 
             <div className="image-upload-section" style={{ marginBottom: "15px" }}>
                 <h3>Question Image (Optional):</h3>
@@ -232,9 +302,7 @@ const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({ instructor_i
                     onChange={(e) => handleFileChange(e, versionIndex)}
                 />
 
-                {uploading[versionIndex] && (
-                    <p>Uploading image...</p>
-                )}
+                {uploading[versionIndex] && (<p>Uploading image...</p>)}
 
                 {previewUrls[versionIndex] && (
                     <div className="image-preview" style={{ marginTop: "10px" }}>
@@ -253,13 +321,78 @@ const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({ instructor_i
                 )}
             </div>
 
-            <h2>Solution:</h2>
-            <input
-                type="text"
-                value={solutions[versionIndex]}
-                onChange={(e) => saveSolution(e.target.value, versionIndex)}
-                style={{ width: "100%", padding: "8px", marginBottom: "10px" }}
-            />
+            {questionType === 'MCQ' && (
+                    <div className="mcq-options-section" style={{ marginBottom: "15px" }}>
+                        <h2>Multiple Choice Options:</h2>
+                        {currentOptions.map((option, optionIndex) => {
+                            if (optionIndex > 0 && currentOptions[optionIndex - 1].trim() === '') return null;
+                            
+                            return (
+                                <div key={optionIndex} style={{ marginBottom: '10px', position: 'relative' }}>
+                                    <label>Option {optionIndex + 1}:</label>
+                                    <input
+                                        type="text"
+                                        value={option}
+                                        onChange={(e) => handleMcqOptionChange(e.target.value, versionIndex, optionIndex)}
+                                        style={{ width: "100%", padding: "8px" }}
+                                        required={optionIndex < 2}
+                                    />
+                                    {optionIndex > 1 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => removeMcqOption(versionIndex, optionIndex)}
+                                            style={{
+                                                position: 'absolute',
+                                                right: -40,
+                                                top: 27,
+                                                background: 'none',
+                                                border: 'none',
+                                                color: '#ff4444',
+                                                cursor: 'pointer'
+                                            }}
+                                        >
+                                            ×
+                                        </button>
+                                    )}
+                                </div>
+                            );
+                        })}
+                        {showAddButton && (
+                            <button
+                                type="button"
+                                onClick={() => addMcqOption(versionIndex)}
+                                style={{ marginTop: '10px', padding: '5px 10px' }}
+                            >
+                                + Add Option
+                            </button>
+                        )}
+                    </div>
+                )}
+
+                <h2>Solution:</h2>
+                {questionType === 'MCQ' ? (
+                    <select
+                        value={solutions[versionIndex]}
+                        onChange={e => saveSolution(e.target.value, versionIndex)}
+                        style={{ width: "100%", padding: "8px", marginBottom: "10px" }}
+                        required
+                    >
+                        <option value="">Select correct option</option>
+                        {validOptions.map((opt, idx) => (
+                            <option key={idx} value={String(idx)}>
+                                Option {idx + 1}: {opt}
+                            </option>
+                        ))}
+                    </select>
+                ) : (
+                    <input
+                        type="text"
+                        value={solutions[versionIndex]}
+                        onChange={(e) => saveSolution(e.target.value, versionIndex)}
+                        style={{ width: "100%", padding: "8px", marginBottom: "10px" }}
+                    />
+                )}
+
 
             <h2>Feedback:</h2>
             <input
@@ -271,8 +404,6 @@ const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({ instructor_i
 
             <div className="feedback-media-section">
                 <h3>Feedback Media:</h3>
-
-                {/* Image Upload */}
                 <div>
                     <input
                         type="file"
@@ -287,8 +418,6 @@ const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({ instructor_i
                         />
                     )}
                 </div>
-
-                {/* Video URL Input */}
                 <input
                     type="text"
                     placeholder="Paste YouTube or video URL"
@@ -296,8 +425,6 @@ const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({ instructor_i
                     onChange={(e) => handleVideoUrlChange(e.target.value, versionIndex)}
                     className="video-url-input"
                 />
-
-                {/* Video Preview */}
                 {feedbackVideos[versionIndex] && (
                     <div className="video-preview">
                         {feedbackVideos[versionIndex].includes('youtube') ? (
@@ -308,8 +435,8 @@ const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({ instructor_i
                     </div>
                 )}
             </div>
-        </div>
-    );
+        </div>)};
+
 
     return (
         <div style={{ maxWidth: "800px", margin: "0 auto", padding: "20px" }}>
@@ -319,17 +446,45 @@ const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({ instructor_i
 
             <h1>New Question:</h1>
 
+            <h3> Points: </h3>
+            <input
+            type='number'
+            value={points}
+            onChange={(e) => setPoints(Number(e.target.value))}
+            />
+
+            {/* Question type selector */}
             <div style={{ margin: "20px 0" }}>
-                <h3>Points:</h3>
-                <input
-                    type="number"
-                    value={points}
-                    onChange={(e) => setPoints(Number(e.target.value))}
-                    style={{ padding: "8px", width: "100px" }}
-                />
+                <h3>Question Type:</h3>
+                <div>
+                    <label style={{ marginRight: '15px' }}>
+                        <input
+                            type="radio"
+                            name="questionType"
+                            value="FRQ"
+                            checked={questionType === 'FRQ'}
+                            onChange={() => {
+                                setQuestionType('FRQ');
+                                setSolutions(['', '', '', '']);
+                            }}
+                        /> Free Response
+                    </label>
+                    <label>
+                        <input
+                            type="radio"
+                            name="questionType"
+                            value="MCQ"
+                            checked={questionType === 'MCQ'}
+                            onChange={() => {
+                                setQuestionType('MCQ');
+                                setSolutions(['', '', '', '']);
+                            }}
+                        /> Multiple Choice
+                    </label>
+                </div>
             </div>
 
-            {/* Render the four version blocks */}
+            {/* Points input and version blocks */}
             {[0, 1, 2, 3].map(index => renderVersionBlock(index))}
 
             <button
