@@ -13,7 +13,21 @@ interface ClientComponentProps {
     onUpload?: (filePath: string) => void;
 }
 
-const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({instructor_id, course_id, assignment_id, onUpload = () => {}}) => {
+const YouTubeEmbed: React.FC<{ url: string }> = ({ url }) => {
+    const videoId = url.match(/(?:v=|\/)([0-9A-Za-z_-]{11}).*/)?.[1];
+
+    return (
+        <iframe
+            width="560"
+            height="315"
+            src={`https://www.youtube.com/embed/${videoId}`}
+            title="YouTube video player"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        />
+    );
+};
+
+const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({ instructor_id, course_id, assignment_id, onUpload = () => { } }) => {
 
     // Use the createClient function to initialize a Supabase client
     const supabase = createClient();
@@ -30,6 +44,9 @@ const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({instructor_id
     const [questionImages, setQuestionImages] = useState<string[]>(['', '', '', '']);
     const [uploading, setUploading] = useState<boolean[]>([false, false, false, false]);
     const [previewUrls, setPreviewUrls] = useState<string[]>(['', '', '', '']);
+    const [feedbackImages, setFeedbackImages] = useState<string[]>(['', '', '', '']);
+    const [feedbackImagePreviews, setFeedbackImagePreviews] = useState<string[]>(['', '', '', '']);
+    const [feedbackVideos, setFeedbackVideos] = useState<string[]>(['', '', '', '']);
 
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>, versionIndex: number) => {
         const file = event.target.files?.[0];
@@ -42,7 +59,7 @@ const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({instructor_id
 
         // Create a unique file path
         const fileExt = file.name.split('.').pop();
-        const fileName = `${Date.now()}_v${versionIndex+1}_${Math.random().toString(36).substring(2, 15)}`;
+        const fileName = `${Date.now()}_v${versionIndex + 1}_${Math.random().toString(36).substring(2, 15)}`;
         const filePath = `question_images/private/${fileName}.${fileExt}`;
 
         try {
@@ -99,7 +116,9 @@ const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({instructor_id
             solutions: solutions,
             feedback: feedbackBodies,
             creator_id: instructor_id,
-            question_image: questionImages
+            question_image: questionImages,
+            feedback_images: feedbackImages,
+            feedback_videos: feedbackVideos
         }
         const { data: verif, error: questionCreationError } = await supabase
             .from('questions')
@@ -114,7 +133,7 @@ const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({instructor_id
         }
         else {
             alert("success");
-            router.push(`/assignment-creator/${course_id}/${assignment_id}`)
+            router.push(`/assignment-editor/${course_id}/${assignment_id}`)
         }
     }
 
@@ -145,11 +164,57 @@ const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({instructor_id
         });
     };
 
+    const handleFeedbackImageChange = async (
+        event: React.ChangeEvent<HTMLInputElement>,
+        versionIndex: number
+    ) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}_feedback_v${versionIndex + 1}_${Math.random().toString(36).substring(2, 15)}`;
+        const filePath = `feedback_images/private/${fileName}.${fileExt}`;
+
+        try {
+            const { error } = await supabase.storage
+                .from("question-images")
+                .upload(filePath, file);
+
+            if (error) throw error;
+
+            const { data: urlData } = supabase.storage
+                .from("question-images")
+                .getPublicUrl(filePath);
+
+            setFeedbackImages(prev => {
+                const newArr = [...prev];
+                newArr[versionIndex] = filePath;
+                return newArr;
+            });
+
+            setFeedbackImagePreviews(prev => {
+                const newArr = [...prev];
+                newArr[versionIndex] = urlData.publicUrl;
+                return newArr;
+            });
+        } catch (error) {
+            console.error("Feedback image upload failed:", error);
+        }
+    };
+
+    const handleVideoUrlChange = (url: string, versionIndex: number) => {
+        setFeedbackVideos(prev => {
+            const newArr = [...prev];
+            newArr[versionIndex] = url;
+            return newArr;
+        });
+    };
+
     // Render a version block with its image upload controls
     const renderVersionBlock = (versionIndex: number) => (
         <div key={versionIndex} className="version-block" style={{ marginBottom: "2rem", padding: "1rem", border: "1px solid #ddd", borderRadius: "8px" }}>
             <h1>Version {versionIndex + 1}</h1>
-            
+
             <h2>Question:</h2>
             <input
                 type="text"
@@ -157,7 +222,7 @@ const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({instructor_id
                 onChange={(e) => saveQuestionBody(e.target.value, versionIndex)}
                 style={{ width: "100%", padding: "8px", marginBottom: "10px" }}
             />
-            
+
             <div className="image-upload-section" style={{ marginBottom: "15px" }}>
                 <h3>Question Image (Optional):</h3>
                 <input
@@ -166,19 +231,19 @@ const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({instructor_id
                     disabled={uploading[versionIndex]}
                     onChange={(e) => handleFileChange(e, versionIndex)}
                 />
-                
+
                 {uploading[versionIndex] && (
                     <p>Uploading image...</p>
                 )}
-                
+
                 {previewUrls[versionIndex] && (
                     <div className="image-preview" style={{ marginTop: "10px" }}>
-                        <img 
-                            src={previewUrls[versionIndex]} 
-                            alt={`Question ${versionIndex + 1} image`} 
-                            style={{ maxWidth: "200px", maxHeight: "200px" }} 
+                        <img
+                            src={previewUrls[versionIndex]}
+                            alt={`Question ${versionIndex + 1} image`}
+                            style={{ maxWidth: "200px", maxHeight: "200px" }}
                         />
-                        <button 
+                        <button
                             onClick={() => removeImage(versionIndex)}
                             style={{ marginLeft: "10px" }}
                         >
@@ -187,7 +252,7 @@ const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({instructor_id
                     </div>
                 )}
             </div>
-            
+
             <h2>Solution:</h2>
             <input
                 type="text"
@@ -195,7 +260,7 @@ const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({instructor_id
                 onChange={(e) => saveSolution(e.target.value, versionIndex)}
                 style={{ width: "100%", padding: "8px", marginBottom: "10px" }}
             />
-            
+
             <h2>Feedback:</h2>
             <input
                 type="text"
@@ -203,6 +268,46 @@ const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({instructor_id
                 onChange={(e) => saveFeedback(e.target.value, versionIndex)}
                 style={{ width: "100%", padding: "8px" }}
             />
+
+            <div className="feedback-media-section">
+                <h3>Feedback Media:</h3>
+
+                {/* Image Upload */}
+                <div>
+                    <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleFeedbackImageChange(e, versionIndex)}
+                    />
+                    {feedbackImagePreviews[versionIndex] && (
+                        <img
+                            src={feedbackImagePreviews[versionIndex]}
+                            alt={`Feedback preview v${versionIndex + 1}`}
+                            className="preview-image"
+                        />
+                    )}
+                </div>
+
+                {/* Video URL Input */}
+                <input
+                    type="text"
+                    placeholder="Paste YouTube or video URL"
+                    value={feedbackVideos[versionIndex]}
+                    onChange={(e) => handleVideoUrlChange(e.target.value, versionIndex)}
+                    className="video-url-input"
+                />
+
+                {/* Video Preview */}
+                {feedbackVideos[versionIndex] && (
+                    <div className="video-preview">
+                        {feedbackVideos[versionIndex].includes('youtube') ? (
+                            <YouTubeEmbed url={feedbackVideos[versionIndex]} />
+                        ) : (
+                            <video controls src={feedbackVideos[versionIndex]} />
+                        )}
+                    </div>
+                )}
+            </div>
         </div>
     );
 
@@ -227,17 +332,17 @@ const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({instructor_id
             {/* Render the four version blocks */}
             {[0, 1, 2, 3].map(index => renderVersionBlock(index))}
 
-            <button 
+            <button
                 onClick={createQuestion}
-                style={{ 
-                    padding: "10px 20px", 
-                    backgroundColor: "#4CAF50", 
-                    color: "white", 
-                    border: "none", 
-                    borderRadius: "4px", 
-                    cursor: "pointer", 
-                    fontSize: "16px", 
-                    marginTop: "20px" 
+                style={{
+                    padding: "10px 20px",
+                    backgroundColor: "#4CAF50",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "4px",
+                    cursor: "pointer",
+                    fontSize: "16px",
+                    marginTop: "20px"
                 }}
             >
                 Save Question

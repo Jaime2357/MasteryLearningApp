@@ -11,9 +11,8 @@ type Question = {
     question_body: string[];
     points: number;
     solutions: string[];
-    feedback: string[];
     question_image?: string[];
-    image_urls?: string[]; // Signed URLs for private bucket
+    image_urls?: string[];
 };
 
 type AssignmentDraft = {
@@ -47,21 +46,20 @@ const AssignmentEditorComponent: React.FC<ClientComponentProps> = ({ instructor_
     const [selectedQuestionIds, setSelectedQuestionIds] = useState<number[]>([]);
     const [currentBlockIndex, setCurrentBlockIndex] = useState<number>(0);
     const [assignmentDraft, setAssignmentDraft] = useState<AssignmentDraft>();
+    const [searchQuery, setSearchQuery] = useState<string>('');
 
-    // Fetch questions and assignment draft
     useEffect(() => {
         getQuestions();
         if (assignmentId) {
             getAssignmentDraft();
             getQuestionBlocks();
         }
-    }, [assignmentId]);    
+    }, [assignmentId]);
 
     useEffect(() => {
         getQuestions();
     }, [assignmentDraft]);
 
-    // Update total points when block points change
     useEffect(() => {
         setTotalPoints(blockPoints.reduce((sum, points) => sum + points, 0));
     }, [blockPoints]);
@@ -79,7 +77,7 @@ const AssignmentEditorComponent: React.FC<ClientComponentProps> = ({ instructor_
                     if (q.question_image && Array.isArray(q.question_image)) {
                         for (const path of q.question_image) {
                             if (path && path.trim() !== '') {
-                                const { data, error } = await supabase
+                                const { data } = await supabase
                                     .storage
                                     .from(BUCKET_NAME)
                                     .createSignedUrl(path, SIGNED_URL_EXPIRY);
@@ -96,7 +94,6 @@ const AssignmentEditorComponent: React.FC<ClientComponentProps> = ({ instructor_
         }
     }
 
-    // Fetch assignment draft details
     async function getAssignmentDraft() {
         const { data: retrievedDraft, error } = await supabase
             .from('assignments_list')
@@ -110,9 +107,22 @@ const AssignmentEditorComponent: React.FC<ClientComponentProps> = ({ instructor_
             setAssignmentDraft(retrievedDraft);
             setDueDate(retrievedDraft.due_date);
             setAssignmentName(retrievedDraft.assignment_name)
-
         }
     }
+
+    const handleQuestionSelection = (questionId: number) => {
+        setSelectedQuestionIds(prev => 
+            prev.includes(questionId)
+                ? prev.filter(id => id !== questionId)
+                : [...prev, questionId]
+        );
+    };
+
+    const removeQuestionFromBlock = (blockIndex: number, questionId: number) => {
+        setSelectedIds(prev => prev.map((block, index) => 
+            index === blockIndex ? block.filter(id => id !== questionId) : block
+        ));
+    };
 
     // Insert new assignment details into Supabase
     async function insertAssignmentDetails() {
@@ -199,7 +209,6 @@ const AssignmentEditorComponent: React.FC<ClientComponentProps> = ({ instructor_
         );
     };
 
-    // Update block points when questions change
     useEffect(() => {
         const newBlockPoints = selectedIds.map((block) =>
             block.reduce((sum, id) => {
@@ -216,22 +225,19 @@ const AssignmentEditorComponent: React.FC<ClientComponentProps> = ({ instructor_
             .select('block_number, question_ids, total_points, mastery_threshold')
             .eq('assignment_id', assignmentId)
             .order('block_number', { ascending: true });
-    
+
         if (error) {
             console.error("Error fetching blocks:", error.message);
         } else if (existingBlocks) {
-            // Get all unique question IDs from all blocks
             const allQuestionIds = existingBlocks
                 .flatMap(b => b.question_ids)
-                .filter((v, i, a) => a.indexOf(v) === i); // Dedupe
-    
-            // Fetch full question data for these IDs
+                .filter((v, i, a) => a.indexOf(v) === i);
+
             const { data: questionsData } = await supabase
                 .from('questions')
                 .select()
                 .in('question_id', allQuestionIds);
-    
-            // Generate image URLs for these questions
+
             const questionsWithImages = await Promise.all(
                 (questionsData || []).map(async (q: Question) => {
                     const image_urls = await Promise.all(
@@ -246,8 +252,7 @@ const AssignmentEditorComponent: React.FC<ClientComponentProps> = ({ instructor_
                     return { ...q, image_urls: image_urls.filter(Boolean) as string[] };
                 })
             );
-    
-            // Update state
+
             setQuestions(prev => [
                 ...prev.filter(p => !allQuestionIds.includes(p.question_id)),
                 ...questionsWithImages
@@ -258,13 +263,8 @@ const AssignmentEditorComponent: React.FC<ClientComponentProps> = ({ instructor_
             setThreshold(existingBlocks.map(b => b.mastery_threshold));
         }
     }
-    
 
-
-
-    // Save blocks into Supabase
     async function saveBlocks() {
-        // Update assignment metadata first
         const { error: metaError } = await supabase
             .from('assignments_list')
             .update({ block_count: blockCount })
@@ -275,7 +275,6 @@ const AssignmentEditorComponent: React.FC<ClientComponentProps> = ({ instructor_
             return;
         }
 
-        // Upsert all blocks
         const { error: blockError } = await supabase
             .from('question_blocks')
             .upsert(
@@ -295,7 +294,6 @@ const AssignmentEditorComponent: React.FC<ClientComponentProps> = ({ instructor_
             alert("Saved successfully");
         }
     }
-
 
     async function deleteDraft(id: string) {
         const { error: AssignmentDeletionError } = await supabase
@@ -321,9 +319,8 @@ const AssignmentEditorComponent: React.FC<ClientComponentProps> = ({ instructor_
     };
 
     const removeBlock = async (blockIndex: number) => {
-        const blockNumberToDelete = blockIndex + 1; // Blocks are 1-indexed in the database
+        const blockNumberToDelete = blockIndex + 1;
 
-        // Delete block from the database
         const { error } = await supabase
             .from('question_blocks')
             .delete()
@@ -336,13 +333,11 @@ const AssignmentEditorComponent: React.FC<ClientComponentProps> = ({ instructor_
             return;
         }
 
-        // Update local state after successful deletion
         setBlockCount((prev) => prev - 1);
         setSelectedIds((prev) => prev.filter((_, index) => index !== blockIndex));
         setBlockPoints((prev) => prev.filter((_, index) => index !== blockIndex));
         setThreshold((prev) => prev.filter((_, index) => index !== blockIndex));
 
-        // Update block numbers for remaining blocks
         const updateBlockNumbers = async () => {
             const { data: remainingBlocks, error } = await supabase
                 .from('question_blocks')
@@ -355,7 +350,6 @@ const AssignmentEditorComponent: React.FC<ClientComponentProps> = ({ instructor_
                 return;
             }
 
-            // Update each block's number
             for (let i = 0; i < remainingBlocks.length; i++) {
                 const { error: updateError } = await supabase
                     .from('question_blocks')
@@ -376,23 +370,75 @@ const AssignmentEditorComponent: React.FC<ClientComponentProps> = ({ instructor_
     function isDateBeforeToday(date: Date) {
         const inputDate = new Date(date);
         const today = new Date();
-
-        // Reset hours, minutes, seconds, and milliseconds to 0 for accurate comparison
         inputDate.setHours(0, 0, 0, 0);
         today.setHours(0, 0, 0, 0);
-
         return inputDate < today;
     }
 
-    async function getImageUrls(imagePaths: string[] | undefined): Promise<string[]> {
-        if (!imagePaths || imagePaths.length === 0) return [];
-        return imagePaths.map(path =>
-            supabase.storage.from('question-images').getPublicUrl(path).data.publicUrl
+    const renderModalContent = () => {
+        const filteredQuestions = questions.filter((question) =>
+            question.question_body.join(' ').toLowerCase().includes(searchQuery.toLowerCase())
         );
-    }
+
+        return (
+            <>
+                <h2>Select Questions</h2>
+                <input
+                    type="text"
+                    placeholder="Search questions..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    style={{ width: '100%', marginBottom: 12, padding: 8, fontSize: 16 }}
+                />
+                <ul className="question-list">
+                    {filteredQuestions.map((question) => (
+                        <li key={question.question_id} className="question-item">
+                            <label>
+                                <input
+                                    type="checkbox"
+                                    checked={selectedQuestionIds.includes(question.question_id)}
+                                    onChange={() => handleQuestionSelection(question.question_id)}
+                                />
+                                <div className="question-preview">
+                                    <p>{question.question_body.join(', ')}</p>
+                                    <div className="media-previews">
+                                        {question.image_urls?.map((url, idx) => (
+                                            <img
+                                                key={`preview-img-${idx}`}
+                                                src={url}
+                                                alt={`Preview ${idx + 1}`}
+                                                className="media-thumbnail"
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                            </label>
+                        </li>
+                    ))}
+                </ul>
+                <button onClick={saveSelectedQuestions}>Save Selection</button>
+            </>
+        );
+    };
+    const mediaStyles = `
+        .media-preview {
+          max-width: 300px;
+          max-height: 200px;
+          margin: 10px 0;
+          border-radius: 4px;
+        }
+        .media-thumbnail {
+          max-width: 100px;
+          max-height: 75px;
+          margin: 5px;
+          object-fit: cover;
+          border-radius: 4px;
+        }
+    `;
 
     return (
         <div>
+            <style jsx>{`${mediaStyles}`}</style>
             <Link href={`/instructor-dashboard/${course_id}`}>Back</Link>
             <div>
                 <h1>Assignment Name:</h1>
@@ -439,7 +485,6 @@ const AssignmentEditorComponent: React.FC<ClientComponentProps> = ({ instructor_
                                         min="0"
                                         max={blockPoints[index] || 0}
                                     />
-
                                 </div>
                                 <button onClick={() => { setIsModalOpen(true); setCurrentBlockIndex(index); }}>Select Questions</button>
                                 <Link href={`/question-creator/${course_id}/${assignmentId}`}>Create New Question</Link>
@@ -451,8 +496,6 @@ const AssignmentEditorComponent: React.FC<ClientComponentProps> = ({ instructor_
                                             <div key={id} className="chip">
                                                 {q?.question_body.join(', ')}
                                                 {q && <p>{q.points} Points</p>}
-
-                                                {/* Render signed image URLs */}
                                                 {q?.image_urls?.map((url, idx) => url && (
                                                     <img
                                                         key={idx}
@@ -494,48 +537,8 @@ const AssignmentEditorComponent: React.FC<ClientComponentProps> = ({ instructor_
                 </div>
             )}
 
-            {/* Modal for selecting questions */}
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
-                <h2>Select Questions</h2>
-                <ul>
-                    {questions.map((question) => (
-                        <li key={question.question_id}>
-                            <label>
-                                <input
-                                    type="checkbox"
-                                    checked={selectedQuestionIds.includes(question.question_id)}
-                                    onChange={() =>
-                                        setSelectedQuestionIds((prev) =>
-                                            prev.includes(question.question_id)
-                                                ? prev.filter(id => id !== question.question_id)
-                                                : [...prev, question.question_id]
-                                        )
-                                    }
-                                />
-                                {question.question_body.join(', ')}
-                            </label>
-
-                            {/* Render signed image URLs in modal */}
-                            {question.image_urls?.map((url, idx) => url && (
-                                <img
-                                    key={idx}
-                                    src={url}
-                                    alt={`Question ${question.question_id} image ${idx + 1}`}
-                                    style={{
-                                        width: '80px',
-                                        height: '80px',
-                                        objectFit: 'cover',
-                                        borderRadius: '4px'
-                                    }}
-                                    onError={(e) => {
-                                        e.currentTarget.style.display = 'none';
-                                    }}
-                                />
-                            ))}
-                        </li>
-                    ))}
-                </ul>
-                <button onClick={saveSelectedQuestions}>Save Selection</button>
+                {renderModalContent()}
             </Modal>
         </div>
     );

@@ -10,9 +10,9 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children }) => {
   if (!isOpen) return null;
 
   return (
-    <div>
-      <div>
-        <button onClick={onClose} className="close-button">Close</button>
+    <div className="modal-overlay">
+      <div className="modal-content">
+        <button onClick={onClose} className="close-button">×</button>
         {children}
       </div>
       <style jsx>{`
@@ -26,14 +26,25 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children }) => {
           display: flex;
           justify-content: center;
           align-items: center;
+          z-index: 1000;
         }
         .modal-content {
           background: white;
-          padding: 20px;
-          border-radius: 5px;
+          padding: 2rem;
+          border-radius: 8px;
+          max-width: 90%;
+          max-height: 90vh;
+          overflow-y: auto;
+          position: relative;
         }
         .close-button {
-          margin-bottom: 10px;
+          position: absolute;
+          top: 1rem;
+          right: 1rem;
+          background: none;
+          border: none;
+          font-size: 1.5rem;
+          cursor: pointer;
         }
       `}</style>
     </div>
