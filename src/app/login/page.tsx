@@ -22,7 +22,7 @@ export default function LoginPage() {
 					<Button formAction={login} type="submit" className="w-full outline rounded-lg p-2 mt-8 cursor-pointer bg-lime-50 transition ease-in-out hover:scale-105 active:bg-gray-400 focus:outline-2">
 						Login
 					</Button>
-					<Button formAction={signup} type="submit" className="w-full outline rounded-lg p-2 mt-4 cursor-pointer bg-lime-300 transition ease-in-out hover:scale-110 active:bg-gray-400 focus:outline-2">
+					<Button onClick={signup} type="button" value='redirect' className="w-full outline rounded-lg p-2 mt-4 cursor-pointer bg-lime-300 transition ease-in-out hover:scale-110 active:bg-gray-400 focus:outline-2">
 						Sign Up
 					</Button>
 				</Form>
