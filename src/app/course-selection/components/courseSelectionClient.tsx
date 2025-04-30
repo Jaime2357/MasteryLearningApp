@@ -114,6 +114,7 @@ const CourseSelectionComponent: React.FC<ClientComponentProps> = ({ id, instruct
                             </li>
                         ))}
                     </ul>
+                    <Link href={`/my-questions/${id}`}> My Questions </Link>
                     <Link href={`/course-creator`}> Create Course </Link>
                     <p> ------------------------------------------</p>
                 </div>
