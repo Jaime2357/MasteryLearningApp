@@ -1,5 +1,4 @@
 import React from "react";
-import Link from "next/link";
 import { redirect } from 'next/navigation';
 import { createClient } from '@/utils/supabase/server'
 import CourseSelectionComponent from "./components/courseSelectionClient";
@@ -51,16 +50,18 @@ export default async function CourseSelection() {
     // Retrieved Courses
     if (instructor) {
         console.log(id)
-        const { data: retrievedCourses } = await supabase.from('courses').select().eq('instructor_id', id);
-        if (!retrievedCourses || retrievedCourses.length <= 0) {
-            return <p> Courses not found </p>
+        const { data: retrievedCourses, error: courseError } = await supabase.from('courses').select().eq('instructor_id', id);
+        if (courseError) {
+            console.log("Error Retrieving Courses: ", courseError.message)
+            return null;
         }
         courses = retrievedCourses;
     }
     else {
-        const { data: course_ids } = await supabase.from('course_enrollments').select('course_id').eq('student_id', id);
-        if (!course_ids || course_ids.length <= 0) {
-            return <p> Not enrolled in any courses </p>
+        const { data: course_ids, error: courseIdError } = await supabase.from('course_enrollments').select('course_id').eq('student_id', id);
+        if (courseIdError) {
+            console.log("Error Retrieving Course IDs: ", courseIdError.message)
+            return null;
         }
         courseIds = course_ids.map(courseID => courseID.course_id);
         const { data: retrievedCourses } = await supabase.from("courses").select().in('course_id', courseIds);
@@ -68,11 +69,8 @@ export default async function CourseSelection() {
     }
 
     if (!courses) { // If courseID does not exist (Should not happen as there is a foreign key constraint)
-        return (
-            <div>
-                <p> Error Retrieving Courses </p>
-            </div>
-        )
+        console.error("No Courses Found...")
+        return null;
     }
 
     let instructorMap: Map<string, Instructor> = new Map();
@@ -81,14 +79,11 @@ export default async function CourseSelection() {
 
         const instructorIds = courses.map(course => course.instructor_id);
 
-        const { data: instructors } = await supabase.from("instructors").select().in('instructor_id', instructorIds);
+        const { data: instructors, error: instructorError } = await supabase.from("instructors").select().in('instructor_id', instructorIds);
 
-        if (!instructors) { // If no matching instructors are found (Should not happen as there is a foreign key + unique constraint)
-            return (
-                <div>
-                    <p> hi - theres nothing here </p>
-                </div>
-            )
+        if (instructorError) { // If no matching instructors are found (Should not happen as there is a foreign key + unique constraint)
+            console.error("No Instructors Found...")
+            return null;
         }
 
         instructorMap = new Map(instructors.map(instructor => [instructor.instructor_id, instructor]));
