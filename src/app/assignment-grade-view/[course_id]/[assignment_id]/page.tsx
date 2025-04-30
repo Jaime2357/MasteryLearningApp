@@ -5,21 +5,24 @@ import { redirect } from 'next/navigation';
 
 type AssignmentParams = { course_id: string, assignment_id: string };
 
-interface Question {
-    question_id: string;
-    question_body: string[];
-    points: number;
-    solutions: string[];
-    question_image?: string[]; // Added image paths
-}
+// interface Question {
+//     question_id: string;
+//     question_body: string[];
+//     points: number;
+//     solutions: string[];
+//     question_image?: string[]; // Added image paths
+// }
 
 interface SubmittedQuestion {
     questionText: string;
     submittedAnswer: string | null;
     correctAnswer: string | null;
+    correctAnswerText: string; // New field for MCQ text
     grade: number | null;
     pointsPossible: number;
-    image?: string; // Single image per question version
+    image?: string;
+    isMCQ?: boolean;
+    MCQ_options?: string[];
 }
 
 interface Version {
@@ -115,7 +118,7 @@ export default async function AssignmentResultPage({ params }: { params: Assignm
     // Fetch questions
     const { data: questions } = await supabase
         .from("questions")
-        .select('question_id, question_body, points, solutions, question_image')
+        .select('question_id, question_body, points, solutions, question_image, MCQ_options')
         .in('question_id', questionIds);
 
     // Generate signed URLs for images
@@ -154,29 +157,78 @@ export default async function AssignmentResultPage({ params }: { params: Assignm
     // Create a structured data object for rendering
     const structuredData: StructuredData = {
         blocks: blocks.map((block) => {
-            const blockSubmissionVersions = blockSubmissions.filter((submission) => submission.block_id === block.block_id);
-            const blockQuestions = questionsWithImages.filter((question) => block.question_ids.includes(question.question_id));
-
-            const versions: Version[] = Array.from({ length: Math.max(...blockSubmissionVersions.map(s => s.block_version)) + 1 }, (_, versionIndex) => {
-                const versionSubmissions = blockSubmissions.find((submission) => submission.block_version === versionIndex);
-
-                if (!versionSubmissions) return { version: versionIndex + 1, questions: [] };
-
-                const versionQuestions: SubmittedQuestion[] = blockQuestions.map((question, questionIndex) => ({
-                    questionText: question.question_body[versionIndex] ?? "Unknown Question",
-                    submittedAnswer: versionSubmissions.answers[questionIndex] ?? "Not Submitted",
-                    correctAnswer: question.solutions[versionIndex] ?? "Unknown",
-                    grade: versionSubmissions.grade[questionIndex] ?? null,
-                    pointsPossible: question.points,
-                    image: question.image_urls[versionIndex] // Get version-specific image
-                }));
-
-                return {
-                    version: versionIndex + 1,
-                    questions: versionQuestions,
-                };
-            });
-
+            const blockSubmissionVersions = blockSubmissions.filter(
+                (submission) => submission.block_id === block.block_id
+            );
+            
+            const blockQuestions = questionsWithImages.filter(
+                (question) => block.question_ids.includes(question.question_id)
+            );
+    
+            const versions: Version[] = Array.from(
+                { length: Math.max(...blockSubmissionVersions.map(s => s.block_version)) + 1 }, 
+                (_, versionIndex) => {
+                    // Find the exact submission for this block and version
+                    const versionSubmission = blockSubmissions.find(
+                        (submission) => 
+                            submission.block_id === block.block_id && 
+                            submission.block_version === versionIndex
+                    );
+                    
+                    if (!versionSubmission) return { version: versionIndex + 1, questions: [] };
+    
+                    // Map questions to their submitted answers using the correct indices
+                    const versionQuestions: SubmittedQuestion[] = blockQuestions.map((question) => {
+                        // Use block.question_ids to find the correct index in the answers array
+                        const questionIndexInBlock = block.question_ids.findIndex((id: number) => id === question.question_id);
+                        
+                        // Get the submitted answer using the correct index
+                        const submittedAnswer = versionSubmission.answers[questionIndexInBlock] ?? "Not Submitted";
+                        
+                        // MCQ handling (existing code)
+                        const mcqOptions = question.MCQ_options?.[versionIndex]?.filter((opt: string) => opt?.trim() !== '') ?? [];
+                        const isMCQ = mcqOptions.length >= 2;
+                        
+                        // Format answers for display
+                        let formattedSubmittedAnswer = submittedAnswer;
+                        let correctAnswerText = question.solutions[versionIndex] ?? "Unknown";
+                        
+                        if (isMCQ) {
+                            // Format submitted MCQ answer
+                            if (!isNaN(Number(submittedAnswer))) {
+                                const idx = Number(submittedAnswer);
+                                formattedSubmittedAnswer = mcqOptions[idx] 
+                                    ? `${String.fromCharCode(65 + idx)}. ${mcqOptions[idx]}`
+                                    : submittedAnswer;
+                            }
+                            
+                            // Format correct MCQ answer
+                            const solutionIndex = Number(correctAnswerText);
+                            if (!isNaN(solutionIndex) && mcqOptions[solutionIndex]) {
+                                correctAnswerText = `${String.fromCharCode(65 + solutionIndex)}. ${mcqOptions[solutionIndex]}`;
+                            }
+                        }
+    
+                        return {
+                            questionText: question.question_body[versionIndex] ?? "Unknown Question",
+                            submittedAnswer: formattedSubmittedAnswer,
+                            correctAnswer: question.solutions[versionIndex] ?? "Unknown",
+                            correctAnswerText,
+                            grade: versionSubmission.grade[questionIndexInBlock] ?? null,
+                            pointsPossible: question.points,
+                            image: question.image_urls?.[versionIndex],
+                            isMCQ,
+                            mcqOptions
+                        };
+                    });
+    
+                    return {
+                        version: versionIndex + 1,
+                        questions: versionQuestions,
+                    };
+                }
+            );
+    
             return {
                 blockNumber: block.block_number,
                 versions,
@@ -232,18 +284,22 @@ export default async function AssignmentResultPage({ params }: { params: Assignm
                                             <img
                                                 src={question.image}
                                                 alt={`Question ${index + 1} visual aid`}
-                                                style={{
-                                                    maxWidth: '200px',
-                                                    maxHeight: '200px',
-                                                    objectFit: 'cover',
-                                                    borderRadius: '4px'
-                                                }}
+                                                style={{ maxWidth: '200px', maxHeight: '200px', objectFit: 'cover', borderRadius: '4px' }}
                                             />
                                         </div>
                                     )}
                                     <p>Question {index + 1}: {question.questionText}</p>
-                                    <p>- Submitted Answer: {question.submittedAnswer}</p>
-                                    <p>- Correct Answer: {question.correctAnswer}</p>
+
+                                    {/* Remove the MCQ options display section entirely */}
+
+                                    <p>- Submitted Answer: {
+                                        // Map submitted numeric answers to option text for MCQs
+                                        question.isMCQ && !isNaN(Number(question.submittedAnswer))
+                                            ? `${String.fromCharCode(65 + Number(question.submittedAnswer))}. ${question.MCQ_options?.[Number(question.submittedAnswer)] || 'Invalid option'
+                                            }`
+                                            : question.submittedAnswer
+                                    }</p>
+                                    <p>- Correct Answer: {question.correctAnswerText}</p>
                                     <p>-- Grade/Points Possible: {question.grade ?? "0"}/{question.pointsPossible}</p>
                                 </div>
                             ))}

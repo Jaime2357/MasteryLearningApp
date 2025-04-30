@@ -191,9 +191,10 @@ export default async function AssignmentPreviewPage({ params }: { params: Assign
                     const hasMCQOptions = Array.isArray(question.MCQ_options) && question.MCQ_options.length > 0;
 
                     // Get raw options if they exist for this version
-                    const MCQOptionsRaw = hasMCQOptions && question.MCQ_options[versionIndex]
+                    const MCQOptionsRaw = hasMCQOptions && question.MCQ_options?.[versionIndex]
                         ? question.MCQ_options[versionIndex]
                         : [];
+
 
                     // Filter non-empty options
                     const MCQOptions = MCQOptionsRaw.filter(opt => opt && opt.trim() !== '');

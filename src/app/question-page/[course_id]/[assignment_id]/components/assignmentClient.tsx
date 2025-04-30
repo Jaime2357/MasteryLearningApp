@@ -18,7 +18,9 @@ type Question = {
     question_image?: string[];
     feedback_images?: string[];
     feedback_videos?: string[];
+    MCQ_options?: string[][]; // Add this for multiple choice options
 };
+
 
 type Block = {
     block_id: number;
@@ -507,6 +509,7 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
                         Question {index + 1} ({question.points} Points):
                         <br />
                         {question.question_body[version]}
+
                         {/* Display version-specific image if present */}
                         {questionImageUrls[index]?.[version] && (
                             <div style={{ margin: '10px 0' }}>
@@ -523,34 +526,77 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
                             </div>
                         )}
 
-                        <input
-                            type="text"
-                            value={userAnswers[index].answer}
-                            onChange={(e) =>
-                                setUserAnswers(
-                                    userAnswers.map((answer, i) =>
-                                        i === index ? { answer: e.target.value, correct: false } : answer
+                        {/* MCQ options if available, otherwise text input */}
+                        {question.MCQ_options &&
+                            question.MCQ_options[version]?.filter(opt => opt?.trim()).length >= 2 ? (
+                            <div className="mcq-options" style={{ margin: '10px 0' }}>
+                                {question.MCQ_options[version]
+                                    .filter(opt => opt?.trim())
+                                    .map((option, optIndex) => (
+                                        <div key={optIndex} style={{ margin: '5px 0' }}>
+                                            <input
+                                                type="radio"
+                                                id={`q${index}-opt${optIndex}`}
+                                                name={`question-${index}`}
+                                                value={optIndex.toString()}
+                                                checked={userAnswers[index].answer === optIndex.toString()}
+                                                onChange={() =>
+                                                    setUserAnswers(
+                                                        userAnswers.map((answer, i) =>
+                                                            i === index ? {
+                                                                answer: optIndex.toString(),
+                                                                correct: false
+                                                            } : answer
+                                                        )
+                                                    )
+                                                }
+                                            />
+                                            <label htmlFor={`q${index}-opt${optIndex}`} style={{ marginLeft: '8px' }}>
+                                                {String.fromCharCode(65 + optIndex)}. {option}
+                                            </label>
+                                        </div>
+                                    ))}
+                            </div>
+                        ) : (
+                            <input
+                                type="text"
+                                value={userAnswers[index].answer}
+                                onChange={(e) =>
+                                    setUserAnswers(
+                                        userAnswers.map((answer, i) =>
+                                            i === index ? { answer: e.target.value, correct: false } : answer
+                                        )
                                     )
-                                )
-                            }
-                        />
+                                }
+                            />
+                        )}
+
                         <br />
+                        {/* Feedback section with improved MCQ answer display */}
                         {(showFeedback) &&
                             <div>
-                                <p> Correct Answer: {question.solutions[version]}</p>
+                                <p> Correct Answer: {
+                                    question.MCQ_options &&
+                                        question.MCQ_options[version]?.filter(opt => opt?.trim()).length >= 2 &&
+                                        !isNaN(Number(question.solutions[version])) ?
+                                        `${String.fromCharCode(65 + Number(question.solutions[version]))}. ${question.MCQ_options[version][Number(question.solutions[version])]
+                                        }` :
+                                        question.solutions[version]
+                                }</p>
                                 <p> Feedback: {question.feedback[version]}</p>
-                                {/* Feedback image/video, only if present */}
+                                {/* Existing feedback media display */}
                                 {(feedbackImageUrls[index]?.[version] ||
                                     (question.feedback_videos && question.feedback_videos[version])) && (
-                                    <FeedbackMedia
-                                        image={feedbackImageUrls[index]?.[version]}
-                                        video={question.feedback_videos ? question.feedback_videos[version] : undefined}
-                                    />
-                                )}
+                                        <FeedbackMedia
+                                            image={feedbackImageUrls[index]?.[version]}
+                                            video={question.feedback_videos ? question.feedback_videos[version] : undefined}
+                                        />
+                                    )}
                             </div>
                         }
                     </li>
                 ))}
+
             </ul>
             {(!showFeedback) &&
                 <button

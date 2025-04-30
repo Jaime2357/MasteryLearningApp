@@ -87,8 +87,9 @@ export default async function SubmissionReviewPage({ params }: { params: Assignm
     // Fetch questions
     const { data: questions } = await supabase
         .from("questions")
-        .select('question_id, question_body, points, solutions, question_image')
+        .select('question_id, question_body, points, solutions, question_image, MCQ_options') // Add MCQ_options
         .in('question_id', questionIds);
+
 
     // Generate signed URLs for images
     const BUCKET_NAME = 'question-images';
@@ -109,7 +110,7 @@ export default async function SubmissionReviewPage({ params }: { params: Assignm
                     }
                 }
             }
-            return { ...question, image_urls };
+            return { ...question, image_urls, MCQ_options: question.MCQ_options };
         })
     );
 
@@ -134,14 +135,39 @@ export default async function SubmissionReviewPage({ params }: { params: Assignm
 
                 if (!versionSubmissions) return { version: versionIndex + 1, questions: [] };
 
-                const versionQuestions: SubmittedQuestion[] = blockQuestions.map((question, questionIndex) => ({
-                    questionText: question.question_body[versionIndex] ?? "Unknown Question",
-                    submittedAnswer: versionSubmissions.answers[questionIndex] ?? "Not Submitted",
-                    correctAnswer: question.solutions[versionIndex] ?? "Unknown",
-                    grade: versionSubmissions.grade[questionIndex] ?? null,
-                    pointsPossible: question.points,
-                    image: question.image_urls[versionIndex] || undefined // Get version-specific image
-                }));
+                const versionQuestions: SubmittedQuestion[] = blockQuestions.map((question, questionIndex) => {
+                    // Get MCQ options for this version, filter out empty ones
+                    const mcqOptionsRaw = question.MCQ_options?.[versionIndex] ?? [];
+                    const mcqOptions = mcqOptionsRaw.filter((opt: string | undefined) => opt?.trim() !== '');
+                    const isMCQ = mcqOptions.length >= 2;
+
+                    // Find the submitted answer (index or text)
+                    const submitted = versionSubmissions.answers[questionIndex] ?? "Not Submitted";
+                    let submittedAnswer = submitted;
+                    let correctAnswer = question.solutions[versionIndex] ?? "Unknown";
+
+                    // Map MCQ indices to option text
+                    if (isMCQ) {
+                        // Submitted answer mapping
+                        if (!isNaN(Number(submitted)) && mcqOptionsRaw[Number(submitted)] !== undefined) {
+                            submittedAnswer = `${String.fromCharCode(65 + Number(submitted))}. ${mcqOptionsRaw[Number(submitted)]}`;
+                        }
+                        // Correct answer mapping
+                        if (!isNaN(Number(correctAnswer)) && mcqOptionsRaw[Number(correctAnswer)] !== undefined) {
+                            correctAnswer = `${String.fromCharCode(65 + Number(correctAnswer))}. ${mcqOptionsRaw[Number(correctAnswer)]}`;
+                        }
+                    }
+
+                    return {
+                        questionText: question.question_body[versionIndex] ?? "Unknown Question",
+                        submittedAnswer,
+                        correctAnswer,
+                        grade: versionSubmissions.grade[questionIndex] ?? null,
+                        pointsPossible: question.points,
+                        image: question.image_urls[versionIndex] || undefined
+                    };
+                });
+
 
                 return {
                     version: versionIndex + 1,
