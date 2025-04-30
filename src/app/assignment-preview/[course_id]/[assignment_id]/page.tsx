@@ -9,7 +9,9 @@ interface SubmittedQuestion {
     correctAnswer: string | null;
     pointsPossible: number;
     questionFeedback: string | null;
-    image: string; // Only one image per version
+    image: string;
+    feedbackImage: string;
+    feedbackVideo: string;
 }
 
 interface Version {
@@ -33,7 +35,49 @@ interface DBQuestion {
     solutions: string[];
     feedback: string[];
     question_image?: string[];
+    feedback_images?: string[];
+    feedback_videos?: string[];
 }
+
+const FeedbackMedia = ({ image, video }: { image?: string; video?: string }) => {
+    if (!image && !video) return null;
+
+    const isYouTube = video?.includes('youtube.com') || video?.includes('youtu.be');
+    const getYouTubeId = (url: string) => {
+        const match = url.match(/(?:v=|\/)([0-9A-Za-z_-]{11}).*/);
+        return match ? match[1] : null;
+    };
+
+    return (
+        <div className="feedback-media">
+            {image && (
+                <img
+                    src={image}
+                    alt="Feedback visual aid"
+                    style={{ maxWidth: '200px', maxHeight: '200px', borderRadius: '4px' }}
+                />
+            )}
+
+            {video && (
+                isYouTube ? (
+                    <div className="video-responsive">
+                        <iframe
+                            src={`https://www.youtube.com/embed/${getYouTubeId(video)}`}
+                            title="YouTube video player"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                        />
+                    </div>
+                ) : (
+                    <video controls style={{ maxWidth: '100%', height: 'auto' }}>
+                        <source src={video} type="video/mp4" />
+                        Your browser does not support the video tag.
+                    </video>
+                )
+            )}
+        </div>
+    );
+};
 
 export default async function AssignmentPreviewPage({ params }: { params: AssignmentParams }) {
     // Create Supabase connection
@@ -78,7 +122,7 @@ export default async function AssignmentPreviewPage({ params }: { params: Assign
     // Fetch questions
     const { data: questions } = await supabase
         .from("questions")
-        .select('question_id, question_body, points, solutions, feedback, question_image')
+        .select()
         .in('question_id', questionIds);
     if (!questions) {
         return <div> Error Retrieving Questions </div>;
@@ -89,29 +133,47 @@ export default async function AssignmentPreviewPage({ params }: { params: Assign
     const BUCKET_NAME = 'question-images'; // Change if your bucket name is different
 
     // For each question, generate signed URLs for all images
-    const questionsWithImages: (DBQuestion & { image_urls: string[] })[] = await Promise.all(
+    const questionsWithImages = await Promise.all(
         (questions as DBQuestion[]).map(async (question) => {
-            // Initialize with empty strings to preserve indices
-            const image_urls = Array(4).fill(''); // Assuming 4 versions
-            
-            if (question.question_image && Array.isArray(question.question_image)) {
-                // Process all 4 potential image slots
+            // Existing question image processing
+            const question_image_urls = Array(4).fill('');
+            if (question.question_image) {
                 await Promise.all(question.question_image.map(async (path, index) => {
                     if (path?.trim()) {
                         const { data } = await supabase.storage
                             .from(BUCKET_NAME)
-                            .createSignedUrl(`private/${path.replace(/^private\//, '')}`, SIGNED_URL_EXPIRY);
+                            .createSignedUrl(path, SIGNED_URL_EXPIRY);
                         if (data?.signedUrl) {
-                            image_urls[index] = data.signedUrl;
+                            question_image_urls[index] = data.signedUrl;
                         }
                     }
                 }));
             }
-            
-            return { ...question, image_urls };
+
+            // Process feedback images
+            const feedback_image_urls = Array(4).fill('');
+            if (question.feedback_images) {
+                await Promise.all(question.feedback_images.map(async (path, index) => {
+                    if (path?.trim()) {
+                        const { data } = await supabase.storage
+                            .from(BUCKET_NAME)
+                            .createSignedUrl(path, SIGNED_URL_EXPIRY);
+                        if (data?.signedUrl) {
+                            feedback_image_urls[index] = data.signedUrl;
+                        }
+                    }
+                }));
+            }
+
+            return {
+                ...question,
+                question_image_urls,
+                feedback_image_urls,
+                feedback_videos: question.feedback_videos || []
+            };
         })
     );
-    
+
 
     // Create a structured data object for rendering
     const structuredData: StructuredData = {
@@ -126,7 +188,9 @@ export default async function AssignmentPreviewPage({ params }: { params: Assign
                     correctAnswer: question.solutions?.[versionIndex] ?? "Unknown",
                     pointsPossible: question.points,
                     questionFeedback: question.feedback?.[versionIndex] ?? "N/A",
-                    image: question.image_urls?.[versionIndex] || '' // Single image per version
+                    image: question.question_image_urls?.[versionIndex] || '',
+                    feedbackImage: question.feedback_image_urls?.[versionIndex] || '',
+                    feedbackVideo: question.feedback_videos?.[versionIndex] || ''
                 }));
 
                 return {
@@ -142,10 +206,8 @@ export default async function AssignmentPreviewPage({ params }: { params: Assign
         }),
     };
 
-
-
-
     return (
+        
         <div>
             <div>
                 <Link href={`/instructor-dashboard/${course_id}`}> Back </Link>
@@ -161,31 +223,29 @@ export default async function AssignmentPreviewPage({ params }: { params: Assign
                             <h4>Version {version.version}:</h4>
                             {version.questions.map((question, index) => (
                                 <div key={index}>
-                                    <p> Question {index + 1}: {question.questionText} </p>
-                                    {/* Display image if present */}
+                                    <p>Question {index + 1}: {question.questionText}</p>
                                     {question.image && (
-                                        <div style={{
-                                            display: 'flex',
-                                            gap: '8px',
-                                            margin: '10px 0'
-                                        }}>
-                                            <img
-                                                key={index}
-                                                src={question.image}
-                                                alt={`Question ${index + 1} visual aid`}
-                                                style={{
-                                                    width: '120px',
-                                                    height: '120px',
-                                                    objectFit: 'cover',
-                                                    borderRadius: '4px'
-                                                }}
+                                        <img
+                                            src={question.image}
+                                            alt={`Question visual aid`}
+                                            style={{ width: '120px', height: '120px', objectFit: 'cover' }}
+                                        />
+                                    )}
+                                    <p>Correct Answer: {question.correctAnswer}</p>
+                                    <p>Points: {question.pointsPossible}</p>
+                                    <p>Feedback: {question.questionFeedback}</p>
+
+                                    {/* Add feedback media */}
+                                    {(question.feedbackImage || question.feedbackVideo) && (
+                                        <div style={{ marginTop: '1rem' }}>
+                                            <h5>Feedback Media:</h5>
+                                            <FeedbackMedia
+                                                image={question.feedbackImage}
+                                                video={question.feedbackVideo}
                                             />
                                         </div>
                                     )}
-                                    <p> Correct Answer: {question.correctAnswer} </p>
-                                    <p> Points: {question.pointsPossible} </p>
-                                    <p> Feedback: {question.questionFeedback}</p>
-                                    <p> ----- </p>
+                                    <p>-----</p>
                                 </div>
                             ))}
 

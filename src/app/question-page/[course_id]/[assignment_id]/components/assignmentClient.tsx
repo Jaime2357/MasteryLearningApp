@@ -15,9 +15,10 @@ type Question = {
     points: number;
     solutions: string[];
     feedback: string[];
-    question_image?: string[]; // <-- Add this
+    question_image?: string[];
+    feedback_images?: string[];
+    feedback_videos?: string[];
 };
-
 
 type Block = {
     block_id: number;
@@ -34,8 +35,69 @@ interface ClientComponentProps {
     courseId: string;
 }
 
-const AssignmentComponent: React.FC<ClientComponentProps> = ({ assignmentId, assignmentName, blocks, studentId, courseId }) => {
+function getYouTubeId(url: string): string | null {
+    // Supports various YouTube URL formats
+    const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?|shorts)\/|.*[?&]v=)|youtu\.be\/)([A-Za-z0-9_-]{11})/;
+    const match = url.match(regex);
+    return match ? match[1] : null;
+}
 
+const FeedbackMedia: React.FC<{ image?: string; video?: string }> = ({ image, video }) => {
+    if (!image && !video) return null;
+
+    const isYouTube = video && (video.includes('youtube.com') || video.includes('youtu.be'));
+    const youtubeId = video && isYouTube ? getYouTubeId(video) : null;
+
+    return (
+        <div style={{ margin: '10px 0', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {image && (
+                <img
+                    src={image}
+                    alt="Feedback visual aid"
+                    style={{
+                        width: '120px',
+                        height: '120px',
+                        objectFit: 'cover',
+                        borderRadius: '4px'
+                    }}
+                />
+            )}
+            {video && isYouTube && youtubeId && (
+                <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0 }}>
+                    <iframe
+                        src={`https://www.youtube.com/embed/${youtubeId}`}
+                        title="YouTube feedback video"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                        style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            height: '100%',
+                            border: 'none'
+                        }}
+                    />
+                </div>
+            )}
+            {video && !isYouTube && (
+                <video
+                    controls
+                    src={video}
+                    style={{ width: '320px', maxWidth: '100%', borderRadius: '4px' }}
+                />
+            )}
+        </div>
+    );
+};
+
+const AssignmentComponent: React.FC<ClientComponentProps> = ({
+    assignmentId,
+    assignmentName,
+    blocks,
+    studentId,
+    courseId,
+}) => {
     const router = useRouter();
 
     const [initialized, setInitialized] = useState(false);
@@ -45,13 +107,13 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({ assignmentId, ass
     const [submissionId, setSubId] = useState(0);
     const [showFeedback, setShowFeedback] = useState(false);
     const [percentageCorrect, setPercentageCorrect] = useState(0);
-    const [threshold, setThreshold] = useState(blocks[currentBlock].mastery_threshold); //Temporary
+    const [threshold, setThreshold] = useState(blocks[currentBlock].mastery_threshold);
     const [userAnswers, setUserAnswers] = useState(
         questions.map(() => ({ answer: '', correct: false }))
     );
     const [questionImageUrls, setQuestionImageUrls] = useState<string[][]>([]);
+    const [feedbackImageUrls, setFeedbackImageUrls] = useState<string[][]>([]);
 
-    // Use the createClient function to initialize a Supabase client
     const supabase = createClient();
 
     useEffect(() => {
@@ -63,7 +125,7 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({ assignmentId, ass
     }, [initialized]);
 
     useEffect(() => {
-
+        // No-op for showFeedback, reserved for future
     }, [showFeedback]);
 
     async function getSubmission() {
@@ -75,8 +137,7 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({ assignmentId, ass
             .single();
 
         if (stateError || !stateData) {
-            console.log('Creating Submission Record...');
-
+            // Create new submission record
             const submitData = {
                 student_id: studentId,
                 assignment_id: assignmentId,
@@ -88,7 +149,7 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({ assignmentId, ass
 
             if (newSubmitError) {
                 console.error("Problem creating new submission record:", newSubmitError.message);
-                return null; // Handle the error gracefully
+                return null;
             }
 
             // Fetch the newly created row
@@ -108,11 +169,9 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({ assignmentId, ass
         }
 
         return stateData;
-
     }
 
     async function initializeState() {
-
         const stateData = await getSubmission();
 
         if (!stateData) {
@@ -122,9 +181,8 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({ assignmentId, ass
 
         if (stateData.finished) {
             router.push(`/assignment-grade-view/${courseId}/${assignmentId}`);
-        }
-        else {
-            setSubId(stateData.submission_id)
+        } else {
+            setSubId(stateData.submission_id);
             setCurrentBlock(stateData.current_block);
             setVersion(stateData.current_version);
             setInitialized(true);
@@ -132,23 +190,22 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({ assignmentId, ass
             const threshold_points = blocks[currentBlock].mastery_threshold;
             const total_points = blocks[currentBlock].total_points;
             if (total_points === 0) {
-                setThreshold(0)
-            }
-            else {
+                setThreshold(0);
+            } else {
                 const thresholdPercent = (threshold_points / total_points) * 100;
-                setThreshold(thresholdPercent)
+                setThreshold(thresholdPercent);
             }
         }
     }
 
     async function fetchQuestions() {
-        console.log('reached: ', initialized);
         if (initialized) {
             if (!blocks[currentBlock]?.question_ids) {
                 console.error('No question IDs found for current block.');
                 return;
             }
 
+            // Fetch feedback_images and feedback_videos!
             const { data: fetchedQuestions, error } = await supabase
                 .from("questions")
                 .select()
@@ -167,11 +224,11 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({ assignmentId, ass
             setQuestions(fetchedQuestions as Question[]);
             setUserAnswers(fetchedQuestions.map(() => ({ answer: '', correct: false })));
 
-            // --- Generate signed URLs for images ---
-            const BUCKET_NAME = 'question-images'; // adjust if your bucket name is different
+            // --- Generate signed URLs for question images ---
+            const BUCKET_NAME = 'question-images';
             const SIGNED_URL_EXPIRY = 600; // 10 minutes
 
-            const urls: string[][] = await Promise.all(
+            const questionUrls: string[][] = await Promise.all(
                 (fetchedQuestions as Question[]).map(async (q) => {
                     if (!q.question_image || !Array.isArray(q.question_image)) {
                         return ['', '', '', ''];
@@ -191,7 +248,30 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({ assignmentId, ass
                     );
                 })
             );
-            setQuestionImageUrls(urls);
+            setQuestionImageUrls(questionUrls);
+
+            // --- Generate signed URLs for feedback images ---
+            const feedbackUrls: string[][] = await Promise.all(
+                (fetchedQuestions as Question[]).map(async (q) => {
+                    if (!q.feedback_images || !Array.isArray(q.feedback_images)) {
+                        return ['', '', '', ''];
+                    }
+                    return await Promise.all(
+                        [0, 1, 2, 3].map(async (versionIdx) => {
+                            const path = q.feedback_images?.[versionIdx];
+                            if (path && path.trim() !== '') {
+                                const { data } = await supabase
+                                    .storage
+                                    .from(BUCKET_NAME)
+                                    .createSignedUrl(path, SIGNED_URL_EXPIRY);
+                                return data?.signedUrl || '';
+                            }
+                            return '';
+                        })
+                    );
+                })
+            );
+            setFeedbackImageUrls(feedbackUrls);
         }
     }
 
@@ -459,13 +539,19 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({ assignmentId, ass
                             <div>
                                 <p> Correct Answer: {question.solutions[version]}</p>
                                 <p> Feedback: {question.feedback[version]}</p>
+                                {/* Feedback image/video, only if present */}
+                                {(feedbackImageUrls[index]?.[version] ||
+                                    (question.feedback_videos && question.feedback_videos[version])) && (
+                                    <FeedbackMedia
+                                        image={feedbackImageUrls[index]?.[version]}
+                                        video={question.feedback_videos ? question.feedback_videos[version] : undefined}
+                                    />
+                                )}
                             </div>
                         }
                     </li>
                 ))}
-
             </ul>
-
             {(!showFeedback) &&
                 <button
                     onClick={() => {
@@ -477,14 +563,13 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({ assignmentId, ass
                             answerKey,
                             blocks[currentBlock].block_id,
                             version,
-                            studentId, // Replace with actual student ID from props or state
-                            questions // Pass questions array to calculate points
+                            studentId,
+                            questions
                         );
                     }}
                 >
                     Submit Answers
                 </button>
-
             }
             {(showFeedback && (percentageCorrect >= threshold)) &&
                 <button onClick={() => { advance(percentageCorrect, threshold); }}>
@@ -496,7 +581,6 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({ assignmentId, ass
                     Retry
                 </button>
             }
-
         </div>
     );
 };
