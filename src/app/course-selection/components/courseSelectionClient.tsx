@@ -97,10 +97,6 @@ const CourseSelectionComponent: React.FC<ClientComponentProps> = ({ id, instruct
     return (
 
         <div>
-            <button onClick={logout}>
-                Sign Out
-            </button>
-            
             {(instructor) &&
                 <div>
                     <h1> Courses: </h1>

@@ -3,8 +3,8 @@ import { login, signup } from './actions'
 
 export default function LoginPage() {
 	return (
-		<div className="flex h-screen bg-lime-50">
-			<div className="m-auto px-16 py-20 rounded-xl outline bg-white">
+		<div className="flex h-screen">
+			<main className="m-auto px-16 py-20 rounded-xl outline bg-white">
 				<h1 className="text-3xl font-mono font-bold">Mastery Learning</h1>
 				<Form className="flex flex-col mt-12">
 					<TextField type="email" name="email" className="">
@@ -26,7 +26,7 @@ export default function LoginPage() {
 						Sign Up
 					</Button>
 				</Form>
-			</div>
+			</main>
 		</div>
 
 	)

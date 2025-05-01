@@ -7,7 +7,7 @@ interface Props {
 
 const Layout: FC<Props> = (props) => {
     return <html lang="en">
-        <body>
+        <body className="bg-lime-50">
             {props.children}
         </body>
     </html>

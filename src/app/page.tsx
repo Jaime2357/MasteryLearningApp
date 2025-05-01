@@ -5,17 +5,15 @@ import { redirect } from 'next/navigation';
 
 async function Page() {
 
-  const supabase = await createClient();
+	const supabase = await createClient();
 
-  const { data: userData, error: authError } = await supabase.auth.getUser();
-  if (authError || !userData?.user) {
-    redirect('/login');
-    return null; // Prevent further execution
-  }
-  else {
-    redirect('/course-selection');
-    return null; // Prevent further execution
-  }
+	const { data: userData, error: authError } = await supabase.auth.getUser();
+	if (authError || !userData?.user) {
+		redirect('/login');
+	}
+	else {
+		redirect('/course-selection');
+	}
 
 }
 
