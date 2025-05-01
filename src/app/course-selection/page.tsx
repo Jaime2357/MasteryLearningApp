@@ -97,7 +97,7 @@ export default async function CourseSelection() {
 			<nav className="p-8">
 				<ul className="flex justify-end">
 					<li>
-						<Button onPress={logout} className="cursor-pointer text-gray-500 hover:underline focus:underline focus:outline-0">
+						<Button onPress={logout} className="cursor-pointer text-gray-600 hover:underline focus:underline focus:outline-0">
 							Sign Out
 						</Button>
 					</li>
