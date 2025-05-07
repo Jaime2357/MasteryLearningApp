@@ -4,6 +4,6 @@
 
 "use client"
 
-import { Form, Input, Label, Text, TextField, Button } from "react-aria-components";
+import { Form, Input, Label, Text, TextField, FieldError, Button } from "react-aria-components";
 
-export { Form, Input, Label, Text, TextField, Button };
+export { Form, Input, Label, Text, TextField, FieldError, Button };
