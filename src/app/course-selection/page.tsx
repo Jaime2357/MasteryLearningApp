@@ -129,17 +129,16 @@ const CourseSelection = async () => {
 				{!instructor &&
 					<>
 						<h1 className="text-3xl font-bold">Courses:</h1>
-						<ul className="mt-5 flex gap-8">
+						<ul className="mt-5 max-w-5xl grid grid-cols-3 gap-8">
 							{courses.map((course, index) => {
 								const instructor = getInstructor(course.instructor_id);
 								return (
-									<li key={course.course_id || index} className="border rounded-lg">
-										<Link href={`/student-dashboard/${course.course_id}`}>
-											({course.course_id}) {course.catalog_code}: {course.course_name}
-											<br />
-											Instructor: {instructor
+									<li key={course.course_id || index} className="bg-white transition ease-in-out hover:scale-105">
+										<Link href={`/student-dashboard/${course.course_id}`} className="flex flex-col p-4 pb-6 border rounded-lg focus:outline-2">
+											<h3 className="text-xl">{course.catalog_code}: {course.course_name}</h3>
+											<p className="mt-1">Instructor: {instructor
 												? `${instructor.first_name} ${instructor.last_name}`
-												: "Unknown Instructor"}
+												: "Unknown Instructor"}</p>
 										</Link>
 									</li>
 								);
