@@ -99,12 +99,14 @@ const CourseSelection = async () => {
 	return (
 		<>
 			{/* Navbar */}
-			<nav className="px-8 pt-6 pb-4 border-b grid grid-cols-4 bg-lime-300">
-				<Link href="/" className="col-start-2 col-end-4 text-center text-xl font-mono font-bold">Mastery Learning</Link>
-				<Button onPress={logout} className="justify-self-end cursor-pointer text-sm hover:underline focus:underline focus:outline-0">
-					Sign Out
-				</Button>
-			</nav>
+			<header className="px-8 pt-6 pb-4 border-b bg-lime-300">
+				<nav className="grid grid-cols-4 ">
+					<Link href="/" className="col-start-2 col-end-4 text-center text-xl font-mono font-bold">Mastery Learning</Link>
+					<Button onPress={logout} className="justify-self-end cursor-pointer text-sm hover:underline focus:underline focus:outline-0">
+						Sign Out
+					</Button>
+				</nav>
+			</header>
 			<main className="mx-12 mt-12">
 				{/* Instructor Course Selection */}
 				{instructor &&
@@ -129,24 +131,27 @@ const CourseSelection = async () => {
 				{!instructor &&
 					<>
 						<h1 className="text-3xl font-bold">Courses:</h1>
-						<ul className="mt-5 max-w-5xl grid grid-cols-3 gap-8">
+						<div className="mt-5 max-w-5xl grid grid-cols-3 gap-8">
 							{courses.map((course, index) => {
 								const instructor = getInstructor(course.instructor_id);
 								return (
-									<li key={course.course_id || index} className="bg-white transition ease-in-out hover:scale-105">
-										<Link href={`/student-dashboard/${course.course_id}`} className="flex flex-col p-4 pb-6 border rounded-lg focus:outline-2">
-											<h3 className="text-xl">{course.catalog_code}: {course.course_name}</h3>
-											<p className="mt-1">Instructor: {instructor
+									<div key={course.course_id || index} className="bg-lime-50 transition ease-in-out hover:scale-105">
+										<Link href={`/student-dashboard/${course.course_id}`} className="flex flex-col overflow-clip text-nowrap h-32 p-4 border rounded-lg focus:outline-2">
+											<h2 className="text-2xl">{course.catalog_code}</h2>
+											<p>{course.course_name}</p>
+											<p className="mt-auto text-sm">{"Instructor: " + (instructor
 												? `${instructor.first_name} ${instructor.last_name}`
-												: "Unknown Instructor"}</p>
+												: "Unknown")}</p>
 										</Link>
-									</li>
+									</div>
 								);
 							})}
-						</ul>
+						</div>
+
 						{/* Student Course Enrollment */}
 						<AddCourseForm />
 					</>
+
 				}
 			</main>
 		</>
