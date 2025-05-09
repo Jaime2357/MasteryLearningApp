@@ -10,6 +10,11 @@ interface FormState {
 
 export const addCourse = async (formState: FormState, formData: FormData): Promise<FormState> => {
 
+	const enrollmentCodeInput: number = Number(formData.get("enrollmentCode"));
+	if (!Number.isInteger(enrollmentCodeInput)) {
+		return { errors: { enrollmentCode: "Invalid enrollment code." } };
+	}
+
 	const supabase = await createClient();
 	const { data, error } = await supabase.auth.getUser();
 	if (error || !data?.user) {
@@ -21,12 +26,12 @@ export const addCourse = async (formState: FormState, formData: FormData): Promi
 	const { data: courseId, error: courseIdError } = await supabase
 		.from('courses')
 		.select('course_id')
-		.eq('enrollment_code', formData.get("enrollmentCode"))
+		.eq('enrollment_code', enrollmentCodeInput)
 		.single();
 
 	if (courseIdError) {
 		if (courseIdError.message === 'JSON object requested, multiple (or no) rows returned') {
-			return { errors: { enrollmentCode: "No matching courses found." } };
+			return { errors: { enrollmentCode: "No matching course found." } };
 		}
 		else {
 			return { errors: { enrollmentCode: "Problem searching for course." } };

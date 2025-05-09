@@ -131,7 +131,7 @@ const CourseSelection = async () => {
 				{!instructor &&
 					<>
 						<h1 className="text-3xl font-bold">Courses:</h1>
-						<div className="mt-5 max-w-5xl grid grid-cols-3 gap-8">
+						<div className="mt-5 max-w-5xl grid grid-cols-1 sm:grid-cols-3 gap-8">
 							{courses.map((course, index) => {
 								const instructor = getInstructor(course.instructor_id);
 								return (
