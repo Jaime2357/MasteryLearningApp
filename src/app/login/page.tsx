@@ -6,15 +6,15 @@ export default function LoginPage() {
 		<main className="flex h-screen bg-lime-50">
 			<div className="m-auto px-16 py-20 rounded-xl outline bg-white">
 				<h1 className="text-3xl font-mono font-bold">Mastery Learning</h1>
-				<Form className="flex flex-col mt-12">
-					<TextField type="email" name="email" className="">
-						<Label className="block text-sm">Email</Label>
+				<Form className="mt-12">
+					<TextField type="email" name="email">
+						<Label className="text-sm">Email</Label>
 						<Input className="w-full outline pl-3 py-1 mt-1 rounded-lg focus:outline-2 bg-gray-200" />
 						<Text slot="description">
 						</Text>
 					</TextField>
-					<TextField type="password" name="password" className="mt-2">
-						<Label className="block text-sm">Password</Label>
+					<TextField type="password" name="password" className={"mt-2"}>
+						<Label className="text-sm">Password</Label>
 						<Input className="w-full outline pl-3 py-1 mt-1 rounded-lg focus:outline-2 bg-gray-200" />
 						<Text slot="description">
 						</Text>
