@@ -18,7 +18,8 @@ type Question = {
     question_image?: string[];
     feedback_images?: string[];
     feedback_videos?: string[];
-    MCQ_options?: string[][]; // Add this for multiple choice options
+    MCQ_options?: string[][];
+    FRQ_err_marg: number[];
 };
 
 
@@ -277,7 +278,15 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
         }
     }
 
-
+    function setUserAnswer(input: string, index: number){
+        console.log(isNaN(Number(input)))
+        if(!isNaN(Number(input))){
+            userAnswers.map((answer, i) =>
+                i === index ? { answer: input, correct: false } : answer
+            )
+        }
+    }
+ 
     async function gradeBlockAndSubmit(
         submittedAnswers: string[],
         answerKey: string[],
@@ -288,7 +297,22 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
     ): Promise<void> {
         // Grade each answer
         let gradedAnswers = submittedAnswers.map((answer, index) => {
-            return answer === answerKey[index] ? questions[index].points : 0;
+            if (!questions[index].MCQ_options) {
+                if (isNaN(Number(answer))) {
+                    alert("Numerical Answers Only")
+                    return 0;
+                }
+                if (Number(answer) < (Number(answerKey[index]) + questions[index].FRQ_err_marg[version])
+                    && Number(answer) > (Number(answerKey[index]) - questions[index].FRQ_err_marg[version])) {
+                    return questions[index].points
+                }
+                else {
+                    return 0;
+                };
+            }
+            else {
+                return answer === answerKey[index] ? questions[index].points : 0;
+            }
         });
 
         if (!gradedAnswers) {
@@ -425,6 +449,7 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
                 console.error("Error Updating Completion")
             }
             router.push(`/assignment-grade-view/${courseId}/${assignmentId}`);
+            return
         }
 
         const { data: savedBlock } = await supabase
@@ -526,6 +551,8 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
                             </div>
                         )}
 
+                        <h2> Answer: </h2>
+
                         {/* MCQ options if available, otherwise text input */}
                         {question.MCQ_options &&
                             question.MCQ_options[version]?.filter(opt => opt?.trim()).length >= 2 ? (
@@ -560,14 +587,11 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
                         ) : (
                             <input
                                 type="text"
+                                inputMode="decimal"
+                                pattern="-?\d*\.?\d*"
+                                autoComplete="off"
                                 value={userAnswers[index].answer}
-                                onChange={(e) =>
-                                    setUserAnswers(
-                                        userAnswers.map((answer, i) =>
-                                            i === index ? { answer: e.target.value, correct: false } : answer
-                                        )
-                                    )
-                                }
+                                onChange={(e) => setUserAnswer(e.target.value, index)}
                             />
                         )}
 

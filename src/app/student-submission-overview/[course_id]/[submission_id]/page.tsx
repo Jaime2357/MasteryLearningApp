@@ -11,6 +11,7 @@ interface SubmittedQuestion {
     grade: number | null;
     pointsPossible: number;
     image?: string; // Added image field
+    FRQ_err_marg?: number;
 }
 
 interface Version {
@@ -87,7 +88,7 @@ export default async function SubmissionReviewPage({ params }: { params: Assignm
     // Fetch questions
     const { data: questions } = await supabase
         .from("questions")
-        .select('question_id, question_body, points, solutions, question_image, MCQ_options') // Add MCQ_options
+        .select('question_id, question_body, points, solutions, question_image, MCQ_options, FRQ_err_marg')
         .in('question_id', questionIds);
 
 
@@ -164,7 +165,8 @@ export default async function SubmissionReviewPage({ params }: { params: Assignm
                         correctAnswer,
                         grade: versionSubmissions.grade[questionIndex] ?? null,
                         pointsPossible: question.points,
-                        image: question.image_urls[versionIndex] || undefined
+                        image: question.image_urls[versionIndex] || undefined,
+                        FRQ_err_marg: question.FRQ_err_marg?.[versionIndex] || 0.0
                     };
                 });
 
@@ -250,9 +252,10 @@ export default async function SubmissionReviewPage({ params }: { params: Assignm
                                         </div>
                                     )}
                                     <p>Question {index + 1}: {question.questionText}</p>
-                                    <p>- Submitted Answer: {question.submittedAnswer}</p>
-                                    <p>- Correct Answer: {question.correctAnswer}</p>
-                                    <p>-- Grade: {question.grade ?? "0"}/{question.pointsPossible}</p>
+                                    <p>Submitted Answer: {question.submittedAnswer}</p>
+                                    <p>Margin of Error Allowed: {question.FRQ_err_marg}</p>
+                                    <p>Correct Answer: {question.correctAnswer}</p>
+                                    <p>Grade: {question.grade ?? "0"}/{question.pointsPossible}</p>
                                 </div>
                             ))}
                         </div>

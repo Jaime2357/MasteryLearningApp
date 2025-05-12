@@ -14,6 +14,7 @@ interface SubmittedQuestion {
     feedbackVideo: string;
     MCQOptions?: string[];
     isMCQ?: boolean;
+    FRQ_err_marg?: number;
 }
 
 interface Version {
@@ -40,6 +41,7 @@ interface DBQuestion {
     feedback_images?: string[];
     feedback_videos?: string[];
     MCQ_options?: string[][];
+    FRQ_err_marg?: number[];
 }
 
 interface DBBlock {
@@ -195,16 +197,8 @@ export default async function AssignmentPreviewPage({ params }: { params: Assign
                         ? question.MCQ_options[versionIndex]
                         : [];
 
-
                     // Filter non-empty options
                     const MCQOptions = MCQOptionsRaw.filter(opt => opt && opt.trim() !== '');
-
-                    // Debug - log what we're finding
-                    console.log('Question ID:', question.question_id);
-                    console.log('Has MCQ options:', hasMCQOptions);
-                    console.log('MCQ options for version:', MCQOptionsRaw);
-                    console.log('Filtered options:', MCQOptions);
-                    console.log('Is MCQ?', MCQOptions.length >= 2);
 
                     // More lenient MCQ detection
                     const isMCQ = MCQOptions.length >= 2;
@@ -230,6 +224,7 @@ export default async function AssignmentPreviewPage({ params }: { params: Assign
                         feedbackVideo: question.feedback_videos?.[versionIndex] || '',
                         MCQOptions,
                         isMCQ,
+                        FRQ_err_marg: question.FRQ_err_marg?.[versionIndex] || 0.0,
                     };
                 });
 
@@ -286,6 +281,7 @@ export default async function AssignmentPreviewPage({ params }: { params: Assign
                                     <p>
                                         <b>Correct Answer:</b> {question.correctAnswer}
                                     </p>
+                                    <p>Margin of Error Allowed: {question.FRQ_err_marg}</p>
                                     <p>Points: {question.pointsPossible}</p>
                                     <p>Feedback: {question.questionFeedback}</p>
 

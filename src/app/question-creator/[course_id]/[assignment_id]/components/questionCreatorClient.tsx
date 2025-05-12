@@ -34,6 +34,7 @@ const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({ instructor_i
 
     const [questionBodies, setQuestions] = useState<string[]>(['', '', '', '']);
     const [solutions, setSolutions] = useState<string[]>(['', '', '', '']);
+    const [FRQErrMarg, setFRQErrMarg] = useState<number[]>([0.0, 0.0, 0.0, 0.0]);
     const [points, setPoints] = useState<number>(1);
     const [feedbackBodies, setFeedback] = useState<string[]>(['', '', '', '']);
     const [mcqOptions, setMcqOptions] = useState<string[][]>(
@@ -102,7 +103,7 @@ const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({ instructor_i
         if (questionType === 'MCQ') {
             for (let versionIndex = 0; versionIndex < 4; versionIndex++) {
                 const validOptions = mcqOptions[versionIndex].filter(opt => opt.trim() !== '');
-                
+
                 // Validate minimum options
                 if (validOptions.length < 2) {
                     alert(`Version ${versionIndex + 1} needs at least 2 options`);
@@ -128,25 +129,25 @@ const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({ instructor_i
                 }
             }
         }
-        else{
-            for(let versionIndex = 0; versionIndex < 4; versionIndex++){
-                if(questionBodies[versionIndex] === ''){
+        else {
+            for (let versionIndex = 0; versionIndex < 4; versionIndex++) {
+                if (questionBodies[versionIndex] === '') {
                     alert(`Please specify a question for Version ${versionIndex + 1}`)
                     return false;
                 }
-                if(solutions[versionIndex] === ''){
+                if (solutions[versionIndex] === '') {
                     alert(`Please specify a solution for Version ${versionIndex + 1}`)
                     return false;
                 }
-                if(isNaN(Number(solutions[versionIndex]))){
+                if (isNaN(Number(solutions[versionIndex]))) {
                     alert(`FRQ Solutions must be numerical, please specify a numerical solution for Version ${versionIndex + 1}`)
                     return false;
                 }
             }
         }
-        if(points < 1){
+        if (points < 1) {
             alert(`Number of points must be greater than zero`)
-                return false;
+            return false;
         }
         return true;
     };
@@ -181,7 +182,7 @@ const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({ instructor_i
     const removeMcqOption = (versionIndex: number, optionIndex: number) => {
         setMcqOptions(prev => {
             const newOptions = [...prev];
-            newOptions[versionIndex] = newOptions[versionIndex].map((opt, idx) => 
+            newOptions[versionIndex] = newOptions[versionIndex].map((opt, idx) =>
                 idx >= optionIndex ? '' : opt
             );
             return newOptions;
@@ -207,7 +208,8 @@ const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({ instructor_i
             question_image: questionImages,
             feedback_images: feedbackImages,
             feedback_videos: feedbackVideos,
-            MCQ_options: questionType === 'MCQ' ? mcqOptions : null
+            MCQ_options: questionType === 'MCQ' ? mcqOptions : null,
+            FRQ_err_marg: FRQErrMarg
         };
         const { error: questionCreationError } = await supabase
             .from('questions')
@@ -236,6 +238,14 @@ const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({ instructor_i
             const newSolutions = [...prev];
             newSolutions[index] = solution;
             return newSolutions;
+        });
+    };
+
+    const saveErrMarg = (errMarg: number, index: number) => {
+        setFRQErrMarg((prev) => {
+            const newErrMarg = [...prev];
+            newErrMarg[index] = errMarg;
+            return newErrMarg;
         });
     };
 
@@ -312,40 +322,40 @@ const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({ instructor_i
                 />
 
 
-            <div className="image-upload-section" style={{ marginBottom: "15px" }}>
-                <h3>Question Image (Optional):</h3>
-                <input
-                    type="file"
-                    accept="image/*"
-                    disabled={uploading[versionIndex]}
-                    onChange={(e) => handleFileChange(e, versionIndex)}
-                />
+                <div className="image-upload-section" style={{ marginBottom: "15px" }}>
+                    <h3>Question Image (Optional):</h3>
+                    <input
+                        type="file"
+                        accept="image/*"
+                        disabled={uploading[versionIndex]}
+                        onChange={(e) => handleFileChange(e, versionIndex)}
+                    />
 
-                {uploading[versionIndex] && (<p>Uploading image...</p>)}
+                    {uploading[versionIndex] && (<p>Uploading image...</p>)}
 
-                {previewUrls[versionIndex] && (
-                    <div className="image-preview" style={{ marginTop: "10px" }}>
-                        <img
-                            src={previewUrls[versionIndex]}
-                            alt={`Question ${versionIndex + 1} image`}
-                            style={{ maxWidth: "200px", maxHeight: "200px" }}
-                        />
-                        <button
-                            onClick={() => removeImage(versionIndex)}
-                            style={{ marginLeft: "10px" }}
-                        >
-                            Remove Image
-                        </button>
-                    </div>
-                )}
-            </div>
+                    {previewUrls[versionIndex] && (
+                        <div className="image-preview" style={{ marginTop: "10px" }}>
+                            <img
+                                src={previewUrls[versionIndex]}
+                                alt={`Question ${versionIndex + 1} image`}
+                                style={{ maxWidth: "200px", maxHeight: "200px" }}
+                            />
+                            <button
+                                onClick={() => removeImage(versionIndex)}
+                                style={{ marginLeft: "10px" }}
+                            >
+                                Remove Image
+                            </button>
+                        </div>
+                    )}
+                </div>
 
-            {questionType === 'MCQ' && (
+                {questionType === 'MCQ' && (
                     <div className="mcq-options-section" style={{ marginBottom: "15px" }}>
                         <h2>Multiple Choice Options:</h2>
                         {currentOptions.map((option, optionIndex) => {
                             if (optionIndex > 0 && currentOptions[optionIndex - 1].trim() === '') return null;
-                            
+
                             return (
                                 <div key={optionIndex} style={{ marginBottom: '10px', position: 'relative' }}>
                                     <label>Option {optionIndex + 1}:</label>
@@ -404,57 +414,69 @@ const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({ instructor_i
                         ))}
                     </select>
                 ) : (
-                    <input
-                        type="text"
-                        value={solutions[versionIndex]}
-                        onChange={(e) => saveSolution(e.target.value, versionIndex)}
-                        style={{ width: "100%", padding: "8px", marginBottom: "10px" }}
-                    />
-                )}
-
-
-            <h2>Feedback:</h2>
-            <input
-                type="text"
-                value={feedbackBodies[versionIndex]}
-                onChange={(e) => saveFeedback(e.target.value, versionIndex)}
-                style={{ width: "100%", padding: "8px" }}
-            />
-
-            <div className="feedback-media-section">
-                <h3>Feedback Media:</h3>
-                <div>
-                    <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => handleFeedbackImageChange(e, versionIndex)}
-                    />
-                    {feedbackImagePreviews[versionIndex] && (
-                        <img
-                            src={feedbackImagePreviews[versionIndex]}
-                            alt={`Feedback preview v${versionIndex + 1}`}
-                            className="preview-image"
+                    <div>
+                        <input
+                            type="text"
+                            value={solutions[versionIndex]}
+                            onChange={(e) => saveSolution(e.target.value, versionIndex)}
+                            style={{ width: "100%", padding: "8px", marginBottom: "10px" }}
                         />
-                    )}
-                </div>
-                <input
-                    type="text"
-                    placeholder="Paste YouTube or video URL"
-                    value={feedbackVideos[versionIndex]}
-                    onChange={(e) => handleVideoUrlChange(e.target.value, versionIndex)}
-                    className="video-url-input"
-                />
-                {feedbackVideos[versionIndex] && (
-                    <div className="video-preview">
-                        {feedbackVideos[versionIndex].includes('youtube') ? (
-                            <YouTubeEmbed url={feedbackVideos[versionIndex]} />
-                        ) : (
-                            <video controls src={feedbackVideos[versionIndex]} />
-                        )}
+                        <h2>Margin of Error:</h2>
+                        <input
+                            type="number"
+                            value={FRQErrMarg[versionIndex]}
+                            step="0.01"
+                            min="0"
+                            onChange={(e) => saveErrMarg(Number(e.target.value), versionIndex)}
+                            style={{ width: "100%", padding: "8px", marginBottom: "10px" }}
+                        />
                     </div>
                 )}
-            </div>
-        </div>)};
+
+
+                <h2>Feedback:</h2>
+                <input
+                    type="text"
+                    value={feedbackBodies[versionIndex]}
+                    onChange={(e) => saveFeedback(e.target.value, versionIndex)}
+                    style={{ width: "100%", padding: "8px" }}
+                />
+
+                <div className="feedback-media-section">
+                    <h3>Feedback Media:</h3>
+                    <div>
+                        <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleFeedbackImageChange(e, versionIndex)}
+                        />
+                        {feedbackImagePreviews[versionIndex] && (
+                            <img
+                                src={feedbackImagePreviews[versionIndex]}
+                                alt={`Feedback preview v${versionIndex + 1}`}
+                                className="preview-image"
+                            />
+                        )}
+                    </div>
+                    <input
+                        type="text"
+                        placeholder="Paste YouTube or video URL"
+                        value={feedbackVideos[versionIndex]}
+                        onChange={(e) => handleVideoUrlChange(e.target.value, versionIndex)}
+                        className="video-url-input"
+                    />
+                    {feedbackVideos[versionIndex] && (
+                        <div className="video-preview">
+                            {feedbackVideos[versionIndex].includes('youtube') ? (
+                                <YouTubeEmbed url={feedbackVideos[versionIndex]} />
+                            ) : (
+                                <video controls src={feedbackVideos[versionIndex]} />
+                            )}
+                        </div>
+                    )}
+                </div>
+            </div>)
+    };
 
 
     return (
@@ -467,10 +489,10 @@ const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({ instructor_i
 
             <h3> Points: </h3>
             <input
-            type='number'
-            value={points}
-            min='1'
-            onChange={(e) => setPoints(Number(e.target.value))}
+                type='number'
+                value={points}
+                min='1'
+                onChange={(e) => setPoints(Number(e.target.value))}
             />
 
             {/* Question type selector */}
