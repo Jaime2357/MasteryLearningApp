@@ -138,6 +138,10 @@ const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({ instructor_i
                     alert(`Please specify a solution for Version ${versionIndex + 1}`)
                     return false;
                 }
+                if(isNaN(Number(solutions[versionIndex]))){
+                    alert(`FRQ Solutions must be numerical, please specify a numerical solution for Version ${versionIndex + 1}`)
+                    return false;
+                }
             }
         }
         if(points < 1){
