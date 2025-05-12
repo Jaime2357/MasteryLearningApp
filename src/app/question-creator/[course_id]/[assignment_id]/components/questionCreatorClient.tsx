@@ -34,7 +34,7 @@ const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({ instructor_i
 
     const [questionBodies, setQuestions] = useState<string[]>(['', '', '', '']);
     const [solutions, setSolutions] = useState<string[]>(['', '', '', '']);
-    const [points, setPoints] = useState<number>(0);
+    const [points, setPoints] = useState<number>(1);
     const [feedbackBodies, setFeedback] = useState<string[]>(['', '', '', '']);
     const [mcqOptions, setMcqOptions] = useState<string[][]>(
         Array(4).fill(0).map(() => Array(4).fill(''))
@@ -128,6 +128,22 @@ const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({ instructor_i
                 }
             }
         }
+        else{
+            for(let versionIndex = 0; versionIndex < 4; versionIndex++){
+                if(questionBodies[versionIndex] === ''){
+                    alert(`Please specify a question for Version ${versionIndex + 1}`)
+                    return false;
+                }
+                if(solutions[versionIndex] === ''){
+                    alert(`Please specify a solution for Version ${versionIndex + 1}`)
+                    return false;
+                }
+            }
+        }
+        if(points < 1){
+            alert(`Number of points must be greater than zero`)
+                return false;
+        }
         return true;
     };
 
@@ -211,7 +227,6 @@ const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({ instructor_i
         });
     };
 
-    // New: For MCQ, save the index as string; for FRQ, save the text
     const saveSolution = (solution: string, index: number) => {
         setSolutions((prev) => {
             const newSolutions = [...prev];
@@ -450,6 +465,7 @@ const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({ instructor_i
             <input
             type='number'
             value={points}
+            min='1'
             onChange={(e) => setPoints(Number(e.target.value))}
             />
 

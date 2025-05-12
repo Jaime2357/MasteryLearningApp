@@ -65,8 +65,6 @@ export const addCourse = async (formState: FormState, formData: FormData): Promi
 			.from('course_enrollments')
 			.insert([newEnrollment])
 
-		console.log(newEnrollment)
-
 		if (enrollmentError) {
 			console.error('Error:', enrollmentError.message)
 			return { errors: { enrollmentCode: "Problem enrolling in course." } };
