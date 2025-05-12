@@ -111,9 +111,7 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
     const [showFeedback, setShowFeedback] = useState(false);
     const [percentageCorrect, setPercentageCorrect] = useState(0);
     const [threshold, setThreshold] = useState(blocks[currentBlock].mastery_threshold);
-    const [userAnswers, setUserAnswers] = useState(
-        questions.map(() => ({ answer: '', correct: false }))
-    );
+    const [userAnswers, setUserAnswers] = useState<string[]>([]);
     const [questionImageUrls, setQuestionImageUrls] = useState<string[][]>([]);
     const [feedbackImageUrls, setFeedbackImageUrls] = useState<string[][]>([]);
 
@@ -225,7 +223,6 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
             }
 
             setQuestions(fetchedQuestions as Question[]);
-            setUserAnswers(fetchedQuestions.map(() => ({ answer: '', correct: false })));
 
             // --- Generate signed URLs for question images ---
             const BUCKET_NAME = 'question-images';
@@ -278,15 +275,6 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
         }
     }
 
-    function setUserAnswer(input: string, index: number){
-        console.log(isNaN(Number(input)))
-        if(!isNaN(Number(input))){
-            userAnswers.map((answer, i) =>
-                i === index ? { answer: input, correct: false } : answer
-            )
-        }
-    }
- 
     async function gradeBlockAndSubmit(
         submittedAnswers: string[],
         answerKey: string[],
@@ -566,17 +554,15 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
                                                 id={`q${index}-opt${optIndex}`}
                                                 name={`question-${index}`}
                                                 value={optIndex.toString()}
-                                                checked={userAnswers[index].answer === optIndex.toString()}
+                                                checked={userAnswers[index] === optIndex.toString()}
                                                 onChange={() =>
                                                     setUserAnswers(
-                                                        userAnswers.map((answer, i) =>
-                                                            i === index ? {
-                                                                answer: optIndex.toString(),
-                                                                correct: false
-                                                            } : answer
+                                                        userAnswers.map((ans, i) =>
+                                                            i === index ? optIndex.toString() : ans
                                                         )
                                                     )
                                                 }
+
                                             />
                                             <label htmlFor={`q${index}-opt${optIndex}`} style={{ marginLeft: '8px' }}>
                                                 {String.fromCharCode(65 + optIndex)}. {option}
@@ -588,11 +574,45 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
                             <input
                                 type="text"
                                 inputMode="decimal"
-                                pattern="-?\d*\.?\d*"
                                 autoComplete="off"
-                                value={userAnswers[index].answer}
-                                onChange={(e) => setUserAnswer(e.target.value, index)}
+                                value={userAnswers[index] || ''} // Fallback for undefined
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    // Allow empty, negatives, decimals, and partial inputs
+                                    if (/^-?\d*\.?\d*$/.test(val)) {
+                                        setUserAnswers(prev => {
+                                            const newAnswers = [...prev];
+                                            newAnswers[index] = val;
+                                            return newAnswers;
+                                        });
+                                    }
+                                }}
+                                onKeyDown={(e) => {
+                                    // Allow navigation/editing keys
+                                    const allowedKeys = [
+                                        'Backspace', 'Tab', 'ArrowLeft', 'ArrowRight',
+                                        'Delete', 'Home', 'End'
+                                    ];
+
+                                    // Allow numbers, single minus at start, single decimal
+                                    if (
+                                        !allowedKeys.includes(e.key) &&
+                                        !/[0-9]/.test(e.key) &&
+                                        !(e.key === '-' && e.currentTarget.selectionStart === 0) &&
+                                        !(e.key === '.' && !e.currentTarget.value.includes('.'))
+                                    ) {
+                                        e.preventDefault();
+                                    }
+                                }}
+                                onPaste={(e) => {
+                                    const paste = e.clipboardData.getData('text/plain');
+                                    if (!/^-?\d*\.?\d*$/.test(paste)) {
+                                        e.preventDefault();
+                                    }
+                                }}
                             />
+
+
                         )}
 
                         <br />
@@ -625,7 +645,7 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
             {(!showFeedback) &&
                 <button
                     onClick={() => {
-                        const submittedAnswers = userAnswers.map(answer => answer.answer);
+                        const submittedAnswers = userAnswers;
                         const answerKey = questions.map(question => question.solutions[version]);
 
                         gradeBlockAndSubmit(
