@@ -61,15 +61,21 @@ export default async function StudentDashboard({ params }: { params: CourseParam
 		return;
 	}
 
+	const assignmentIds = assignments.map(a => a.assignment_id);
+
 	// Fetch submissions
 	const { data: submissions, error: submissionError } = await supabase
 		.from('student_submissions')
-		.select('submission_id, assignment_id, blocks_complete, finished');
+		.select('submission_id, assignment_id, blocks_complete, finished')
+		.eq('student_id', student_id?.student_id)
+		.in('assignment_id', assignmentIds);
 
 	if (submissionError) {
 		console.error("Problem retrieving submissions: ", submissionError.message);
 		return;
 	}
+
+	console.log(submissions)
 
 	// Map assignments to their corresponding submissions
 	const mappedAssignments = await Promise.all(
