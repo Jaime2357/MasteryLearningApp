@@ -1,14 +1,15 @@
 import { FC, ReactNode } from "react";
 import "./globals.css";
+import ClientProviders from "@/utils/provider";
 
 interface Props {
 	children: ReactNode;
 }
 
-const Layout: FC<Props> = (props) => {
+const Layout: FC<Props> = props => {
 	return <html lang="en">
 		<body>
-			{props.children}
+			<ClientProviders>{props.children}</ClientProviders>
 		</body>
 	</html>
 }

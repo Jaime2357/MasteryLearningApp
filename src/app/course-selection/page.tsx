@@ -100,9 +100,9 @@ const CourseSelection = async () => {
 		<>
 			{/* Navbar */}
 			<header className="px-8 pt-6 pb-4 border-b bg-lime-300">
-				<nav className="grid grid-cols-4 ">
+				<nav className="grid grid-cols-4">
 					<Link href="/" className="col-start-2 col-end-4 text-center text-xl font-mono font-bold">Mastery Learning</Link>
-					<Button onPress={logout} className="justify-self-end cursor-pointer text-sm hover:underline focus:underline focus:outline-0">
+					<Button onPress={logout} className="justify-self-end cursor-pointer text-sm hover:underline focus-visible:underline outline-none">
 						Sign Out
 					</Button>
 				</nav>
@@ -135,15 +135,20 @@ const CourseSelection = async () => {
 							{courses.map((course, index) => {
 								const instructor = getInstructor(course.instructor_id);
 								return (
-									<div key={course.course_id || index} className="bg-lime-50 transition ease-in-out hover:scale-105">
-										<Link href={`/student-dashboard/${course.course_id}`} className="flex flex-col overflow-clip text-nowrap h-32 p-4 border rounded-lg focus:outline-2">
-											<h2 className="text-2xl">{course.catalog_code}</h2>
-											<p>{course.course_name}</p>
-											<p className="mt-auto text-sm">{"Instructor: " + (instructor
+									<Link
+										key={course.course_id || index}
+										href={`/student-dashboard/${course.course_id}`}
+										className="flex flex-col overflow-clip text-nowrap h-32 p-4 border rounded-lg bg-lime-50 transition ease-in-out hover:scale-105 hover:bg-lime-300 outline-lime-300 focus-visible:outline-2 active:bg-gray-300"
+									>
+										<h2 className="text-2xl">{course.catalog_code}</h2>
+										<p>{course.course_name}</p>
+										<p className="mt-auto text-sm">
+											{"Instructor: " + (instructor
 												? `${instructor.first_name} ${instructor.last_name}`
-												: "Unknown")}</p>
-										</Link>
-									</div>
+												: "Unknown")
+											}
+										</p>
+									</Link>
 								);
 							})}
 						</div>
