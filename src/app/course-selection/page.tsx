@@ -110,22 +110,38 @@ const CourseSelection = async () => {
 			<main className="mx-12 mt-12">
 				{/* Instructor Course Selection */}
 				{instructor &&
-					<div>
-						<h1> Courses: </h1>
-						<ul>
-							{courses.map((course, index) => (
-								<li key={course.course_id || index}>
-									<Link href={`/instructor-dashboard/${course.course_id}`}>
-										({course.course_id}) {course.catalog_code}: {course.course_name}
-										<br />
+					<>
+						<h1 className="text-3xl font-bold">Courses:</h1>
+						<div className="mt-5 max-w-5xl grid grid-cols-1 sm:grid-cols-3 gap-8">
+							{courses.map((course, index) => {
+								return (
+									<Link
+										key={course.course_id || index}
+										href={`/instructor-dashboard/${course.course_id}`}
+										className="flex flex-col overflow-clip text-nowrap h-32 p-4 border rounded-lg bg-lime-50 transition ease-in-out hover:scale-105 hover:bg-lime-300 outline-lime-300 focus-visible:outline-2 active:bg-gray-300"
+									>
+										<h2 className="text-2xl">{course.catalog_code}</h2>
+										<p>{course.course_name}</p>
+										<p>{course.course_id}</p>
 									</Link>
-								</li>
-							))}
-						</ul>
-						<Link href={`/my-questions/${id}`}> My Questions </Link>
-						<Link href={`/course-creator`}> Create Course </Link>
-						<p> ------------------------------------------</p>
-					</div>
+								);
+							})}
+						</div>
+
+						<div className="mt-3">
+							<Link href={`/my-questions/${id}`}>
+								<Button className={"data-[disabled]:hidden h-fit border rounded-lg ml-2 px-2 py-1 cursor-pointer bg-lime-50 hover:bg-lime-300 outline-lime-300 focus-visible:outline-2 active:bg-gray-300"}>
+									My Questions
+								</Button>
+							</Link>
+
+							<Link href={`/course-creator`}>
+								<Button className={"data-[disabled]:hidden h-fit border rounded-lg ml-2 px-2 py-1 cursor-pointer bg-lime-50 hover:bg-lime-300 outline-lime-300 focus-visible:outline-2 active:bg-gray-300"}>
+									Create Course
+								</Button>
+							</Link>
+						</div>
+					</>
 				}
 				{/* Student Course Selection */}
 				{!instructor &&
@@ -158,7 +174,7 @@ const CourseSelection = async () => {
 					</>
 
 				}
-			</main>
+			</main >
 		</>
 	)
 
