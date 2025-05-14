@@ -530,7 +530,7 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 								className="p-6 border rounded-xl bg-white max-w-md"
 								role="alertdialog">
 								<Heading className="text-lg font-semibold" slot="title">Exit Assignment</Heading>
-								<p className="mt-2 text-gray-600">Are you sure you want to exit? Any work you have not submitted will not be saved.</p>
+								<p className="mt-2 text-gray-600">Are you sure you want to exit? You must submit in order to save your work.</p>
 								<div className="flex justify-end gap-2">
 									<Button
 										className="border rounded-lg px-4 py-2 mt-4 cursor-pointer bg-lime-50 hover:bg-lime-300 active:bg-gray-300 outline-lime-300 focus-visible:outline-2"
@@ -711,7 +711,7 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 				))}
 				{(!showFeedback) &&
 					<Button
-						className="border rounded-lg p-2 mt-8 cursor-pointer bg-lime-50 hover:bg-lime-300 active:bg-gray-300 outline-lime-300 focus-visible:outline-2"
+						className="border rounded-lg px-4 py-2 mt-8 cursor-pointer bg-lime-50 hover:bg-lime-300 active:bg-gray-300 outline-lime-300 focus-visible:outline-2"
 						onClick={() => {
 							const submittedAnswers = userAnswers;
 							const answerKey = questions.map(question => question.solutions[version]);
