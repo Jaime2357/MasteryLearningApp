@@ -364,7 +364,7 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 
 		alert(`You scored ${totalPointsEarned}/${totalPossiblePoints} points (${percentCalc.toFixed(2)}%)!`);
 
-		if (totalPointsEarned >= threshold || version + 1 >= 4) {
+		if ((totalPointsEarned/totalPossiblePoints)*100 >= threshold || version + 1 >= 4) {
 
 			if (currentBlock + 1 >= blocks.length) {
 
@@ -416,22 +416,22 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 					.eq('submission_id', submissionId);
 			}
 		}
-		else{
+		else {
 			const { data: savedVersion } = await supabase
-			.from('student_submissions')
-			.select('current_version')
-			.eq('submission_id', submissionId)
-			.single();
+				.from('student_submissions')
+				.select('current_version')
+				.eq('submission_id', submissionId)
+				.single();
 
-		if (!savedVersion) {
-			console.error('Error reading assignment submission:');
-			return;
-		}
+			if (!savedVersion) {
+				console.error('Error reading assignment submission:');
+				return;
+			}
 
-		const { } = await supabase
-			.from('student_submissions')
-			.update({ current_version: savedVersion.current_version + 1 })
-			.eq('submission_id', submissionId);
+			const { } = await supabase
+				.from('student_submissions')
+				.update({ current_version: savedVersion.current_version + 1 })
+				.eq('submission_id', submissionId);
 		}
 
 		const { data: scores } = await supabase
@@ -530,8 +530,6 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 	useEffect(() => {
 		fetchQuestions();
 	}, [currentBlock]);
-
-	console.log(percentageCorrect, '<', threshold)
 
 	const isQuestionCorrect = (index: number): boolean => {
 		return answerScores[index] > 0;
