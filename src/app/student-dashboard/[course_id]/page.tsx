@@ -141,9 +141,12 @@ export default async function StudentDashboard({ params }: { params: CourseParam
 			</Link>
 			<main className="mx-12 mt-6">
 				<h1 className="text-3xl font-bold">{`${course.catalog_code}: ${course.course_name}`}</h1>
-				<Table aria-label="assignments" className="mt-6 min-w-md max-w-4xl w-full table-fixed">
+				<Table
+					aria-label="assignments"
+					className="mt-6 min-w-md max-w-4xl w-full table-fixed"
+				>
 					<TableHeader className="text-left text-sm border-b">
-						<Column isRowHeader className="pl-4 py-2 w-1/3">Assignment</Column>
+						<Column isRowHeader className="pl-4 py-2 w-2/5">Assignment</Column>
 						<Column>Progress</Column>
 						<Column>Due Date</Column>
 						<Column>Status</Column>
@@ -155,7 +158,7 @@ export default async function StudentDashboard({ params }: { params: CourseParam
 								href={`../question-page/${course_id}/${assignment.assignment_id}`}
 								className="hover:bg-lime-50 hover:cursor-pointer focus-within:bg-lime-50 active:bg-lime-300 border-b border-gray-400"
 							>
-								<Cell className="pl-4 py-4"><h2>{assignment.assignment_name}</h2></Cell>
+								<Cell className="pl-4 py-4"><h2 className="truncate">{assignment.assignment_name}</h2></Cell>
 								<Cell>{getPercentage(assignment.block_count, assignment.submission?.blocks_complete ?? 0)}</Cell>
 								<Cell>{new Date(assignment.due_date).toLocaleDateString()}</Cell>
 								<Cell>{
