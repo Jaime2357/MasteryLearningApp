@@ -96,7 +96,7 @@ export default async function StudentDashboard({ params }: { params: CourseParam
 	async function createSubmission(assignment_id: number): Promise<Submission | null> {
 
 		const newSubmissionData = {
-			student_id: student_id,
+			student_id: student_id?.student_id,
 			assignment_id: assignment_id,
 			blocks_complete: 0, // Explicitly set default value
 			finished: false,    // Explicitly set default value
