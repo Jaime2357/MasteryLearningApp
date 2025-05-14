@@ -4,8 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronLeft } from "lucide-react";
-import { Button, Input, Label, TextField } from "@/components/react-aria";
+import { ChevronLeft, Circle } from "lucide-react";
+import { Button, Input, Label, Radio, RadioGroup, TextField } from "@/components/react-aria";
 
 type AssignmentName = {
 	assignment_name: string;
@@ -549,35 +549,76 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 						)}
 						{/* MCQ options if available, otherwise text input */}
 						{question.MCQ_options &&
-							question.MCQ_options[version]?.filter(opt => opt?.trim()).length >= 2 ? (
-							<div className="mcq-options" style={{ margin: '10px 0' }}>
+							question.MCQ_options[version]?.filter(opt => opt?.trim()).length >= 2 ?
+							<RadioGroup
+								className="flex flex-col mt-4 gap-1"
+								value={userAnswers[index]}
+								onChange={choice =>
+									setUserAnswers(
+										userAnswers.map((ans, i) =>
+											i === index ? choice : ans
+										)
+									)
+								}
+							>
+								<Label className="block text-sm">Your Answer</Label>
 								{question.MCQ_options[version]
 									.filter(opt => opt?.trim())
 									.map((option, optIndex) => (
-										<div key={optIndex} style={{ margin: '5px 0' }}>
-											<input
-												type="radio"
-												id={`q${index}-opt${optIndex}`}
-												name={`question-${index}`}
-												value={optIndex.toString()}
-												checked={userAnswers[index] === optIndex.toString()}
-												onChange={() =>
-													setUserAnswers(
-														userAnswers.map((ans, i) =>
-															i === index ? optIndex.toString() : ans
-														)
-													)
-												}
-											/>
-											<label htmlFor={`q${index}-opt${optIndex}`} style={{ marginLeft: '8px' }}>
+										// <div key={optIndex} style={{ margin: '5px 0' }}>
+										<Radio
+											className="group hover:cursor-pointer w-fit"
+											key={optIndex}
+											// id={`q${index}-opt${optIndex}`}
+											// name={`question-${index}`}
+											value={optIndex.toString()}
+										// checked={userAnswers[index] === optIndex.toString()}
+										// onChange={() =>
+										// 	setUserAnswers(
+										// 		userAnswers.map((ans, i) =>
+										// 			i === index ? optIndex.toString() : ans
+										// 		)
+										// 	)
+										// }
+										>
+											<Circle size={20} strokeWidth={1} className="inline group-data-selected:fill-lime-300"></Circle>
+											<span className="align-bottom ml-2">{option}</span>
+											{/* {String.fromCharCode(65 + optIndex)}. {option} */}
+											{/* <label htmlFor={`q${index}-opt${optIndex}`}>
 												{String.fromCharCode(65 + optIndex)}. {option}
-											</label>
-										</div>
+											</label> */}
+										</Radio>
+										// </div>
 									))}
-							</div>
-						) :
+							</RadioGroup>
+							// <div className="mcq-options" style={{ margin: '10px 0' }}>
+							// 	{question.MCQ_options[version]
+							// 		.filter(opt => opt?.trim())
+							// 		.map((option, optIndex) => (
+							// 			<div key={optIndex} style={{ margin: '5px 0' }}>
+							// 				<input
+							// 					type="radio"
+							// 					id={`q${index}-opt${optIndex}`}
+							// 					name={`question-${index}`}
+							// 					value={optIndex.toString()}
+							// 					checked={userAnswers[index] === optIndex.toString()}
+							// 					onChange={() =>
+							// 						setUserAnswers(
+							// 							userAnswers.map((ans, i) =>
+							// 								i === index ? optIndex.toString() : ans
+							// 							)
+							// 						)
+							// 					}
+							// 				/>
+							// 				<label htmlFor={`q${index}-opt${optIndex}`} style={{ marginLeft: '8px' }}>
+							// 					{String.fromCharCode(65 + optIndex)}. {option}
+							// 				</label>
+							// 			</div>
+							// 		))}
+							// </div>
+							:
 							<TextField
-								className="mt-2"
+								className="mt-3"
 								type="text"
 								inputMode="decimal"
 								autoComplete="off"
