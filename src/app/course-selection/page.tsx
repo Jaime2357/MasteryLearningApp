@@ -112,13 +112,13 @@ const CourseSelection = async () => {
 				{instructor &&
 					<>
 						<h1 className="text-3xl font-bold">Courses:</h1>
-						<div className="mt-5 max-w-5xl grid grid-cols-1 sm:grid-cols-3 gap-8">
+						<div className="mt-5 max-w-5xl grid grid-cols-1 sm:grid-cols-3 gap-4">
 							{courses.map((course, index) => {
 								return (
 									<Link
 										key={course.course_id || index}
 										href={`/instructor-dashboard/${course.course_id}`}
-										className="flex flex-col overflow-clip text-nowrap h-32 p-4 border rounded-lg bg-lime-50 transition ease-in-out hover:scale-105 hover:bg-lime-300 outline-lime-300 focus-visible:outline-2 active:bg-gray-300"
+										className="flex flex-col *:truncate h-32 p-4 border rounded-lg bg-lime-50 transition ease-in-out hover:scale-105 hover:bg-lime-300 outline-lime-300 focus-visible:outline-2 active:bg-gray-300"
 									>
 										<h2 className="text-2xl">{course.catalog_code}</h2>
 										<p>{course.course_name}</p>
@@ -147,14 +147,14 @@ const CourseSelection = async () => {
 				{!instructor &&
 					<>
 						<h1 className="text-3xl font-bold">Courses:</h1>
-						<div className="mt-5 max-w-5xl grid grid-cols-1 sm:grid-cols-3 gap-8">
+						<div className="mt-5 max-w-5xl grid grid-cols-1 sm:grid-cols-3 gap-4">
 							{courses.map((course, index) => {
 								const instructor = getInstructor(course.instructor_id);
 								return (
 									<Link
 										key={course.course_id || index}
 										href={`/student-dashboard/${course.course_id}`}
-										className="flex flex-col overflow-clip text-nowrap h-32 p-4 border rounded-lg bg-lime-50 transition ease-in-out hover:scale-105 hover:bg-lime-300 outline-lime-300 focus-visible:outline-2 active:bg-gray-300"
+										className="flex flex-col *:truncate h-32 p-4 border rounded-lg bg-lime-50 transition ease-in-out hover:scale-105 hover:bg-lime-300 outline-lime-300 focus-visible:outline-2 active:bg-gray-300"
 									>
 										<h2 className="text-2xl">{course.catalog_code}</h2>
 										<p>{course.course_name}</p>
