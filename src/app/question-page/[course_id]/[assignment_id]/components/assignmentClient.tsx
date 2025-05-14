@@ -5,6 +5,7 @@ import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ChevronLeft } from "lucide-react";
+import { Button, Input, Label, TextField } from "@/components/react-aria";
 
 type AssignmentName = {
 	assignment_name: string;
@@ -522,6 +523,7 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 				<p className="text-sm text-nowrap">Attempts Left: {4 - version}</p>
 			</header>
 			<main className="mx-12 mt-6 max-w-4xl lg:mx-auto">
+				{/* <Form> */}
 				{questions.map((question, index) => (
 					<div
 						key={index}
@@ -529,8 +531,7 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 					>
 						<h2 className="text-2xl font-bold inline">{`Question ${index + 1}`}</h2>
 						<p className="text-gray-600">{`${question.points} point${question.points != 1 ? "s" : ""}`}</p>
-						<p className="mt-4 p-4 min-w-xs w-fit bg-lime-50 rounded-lg font-mono">{question.question_body[version]}</p>
-
+						<p className="mt-4 p-4 min-w-xs w-fit bg-gray-200 rounded-xl font-mono">{question.question_body[version]}</p>
 						{/* Display version-specific image if present */}
 						{questionImageUrls[index]?.[version] && (
 							<div style={{ margin: '10px 0' }}>
@@ -546,9 +547,6 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 								/>
 							</div>
 						)}
-
-						<p> Answer: </p>
-
 						{/* MCQ options if available, otherwise text input */}
 						{question.MCQ_options &&
 							question.MCQ_options[version]?.filter(opt => opt?.trim()).length >= 2 ? (
@@ -570,7 +568,6 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 														)
 													)
 												}
-
 											/>
 											<label htmlFor={`q${index}-opt${optIndex}`} style={{ marginLeft: '8px' }}>
 												{String.fromCharCode(65 + optIndex)}. {option}
@@ -578,14 +575,14 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 										</div>
 									))}
 							</div>
-						) : (
-							<input
+						) :
+							<TextField
+								className="mt-2"
 								type="text"
 								inputMode="decimal"
 								autoComplete="off"
 								value={userAnswers[index] || ''} // Fallback for undefined
-								onChange={(e) => {
-									const val = e.target.value;
+								onChange={val => {
 									// Allow empty, negatives, decimals, and partial inputs
 									if (/^-?\d*\.?\d*$/.test(val)) {
 										setUserAnswers(prev => {
@@ -601,7 +598,6 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 										'Backspace', 'Tab', 'ArrowLeft', 'ArrowRight',
 										'Delete', 'Home', 'End'
 									];
-
 									// Allow numbers, single minus at start, single decimal
 									if (
 										!allowedKeys.includes(e.key) &&
@@ -618,12 +614,14 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 										e.preventDefault();
 									}
 								}}
-							/>
+								isDisabled={showFeedback}
+							>
+								<Label className="block text-sm">Your Answer</Label>
+								<Input className="border pl-3 py-1 mt-1 rounded-lg outline-lime-300 focus:outline-2 disabled:bg-gray-200" />
+							</TextField>
 
+						}
 
-						)}
-
-						<br />
 						{/* Feedback section with improved MCQ answer display */}
 						{(showFeedback) &&
 							<div>
@@ -648,41 +646,40 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 						}
 					</div>
 				))}
+				{(!showFeedback) &&
+					<Button
+						className="border rounded-lg p-2 mt-8 cursor-pointer bg-lime-50 hover:bg-lime-300 active:bg-gray-300 outline-lime-300 focus-visible:outline-2"
+						onClick={() => {
+							const submittedAnswers = userAnswers;
+							const answerKey = questions.map(question => question.solutions[version]);
+							gradeBlockAndSubmit(
+								submittedAnswers,
+								answerKey,
+								blocks[currentBlock].block_id,
+								version,
+								studentId,
+								questions
+							);
+						}}
+					>
+						Submit and Grade
+					</Button>
+				}
+				{(showFeedback && (percentageCorrect >= threshold)) &&
+					<button onClick={() => { advance(percentageCorrect, threshold); }}>
+						Next
+					</button>
+				}
+				{(showFeedback && (percentageCorrect < threshold)) &&
+					<button onClick={() => { advance(percentageCorrect, threshold); }}>
+						Retry
+					</button>
+				}
+				{/* </Form> */}
 			</main>
 
-
-
-
-			{(!showFeedback) &&
-				<button
-					onClick={() => {
-						const submittedAnswers = userAnswers;
-						const answerKey = questions.map(question => question.solutions[version]);
-
-						gradeBlockAndSubmit(
-							submittedAnswers,
-							answerKey,
-							blocks[currentBlock].block_id,
-							version,
-							studentId,
-							questions
-						);
-					}}
-				>
-					Submit Answers
-				</button>
-			}
-			{(showFeedback && (percentageCorrect >= threshold)) &&
-				<button onClick={() => { advance(percentageCorrect, threshold); }}>
-					Next
-				</button>
-			}
-			{(showFeedback && (percentageCorrect < threshold)) &&
-				<button onClick={() => { advance(percentageCorrect, threshold); }}>
-					Retry
-				</button>
-			}
-			<div className="h-screen"></div>
+			{/* This div was to simulate page scroll for testing. */}
+			{/* <div className="h-screen"></div> */}
 		</>
 	);
 };
