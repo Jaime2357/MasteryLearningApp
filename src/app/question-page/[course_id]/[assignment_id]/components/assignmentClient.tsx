@@ -533,14 +533,14 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 								<p className="mt-2 text-gray-600">Are you sure you want to exit? You must submit in order to save your work.</p>
 								<div className="flex justify-end gap-2">
 									<Button
-										className="border rounded-lg px-4 py-2 mt-4 cursor-pointer bg-lime-50 hover:bg-lime-300 active:bg-gray-300 outline-lime-300 focus-visible:outline-2"
+										className="border rounded-lg px-4 py-2 mt-4 cursor-pointer transition-colors bg-lime-50 hover:bg-lime-300 active:bg-gray-300 outline-lime-300 focus-visible:outline-2"
 										slot="close"
 									>
 										Cancel
 									</Button>
 									<Link
 										href={`/student-dashboard/${courseId}`}
-										className="border border-black rounded-lg px-4 py-2 mt-4 bg-red-500 text-white hover:bg-red-600 active:bg-gray-600 outline-lime-300 focus-visible:outline-2"
+										className="border border-black rounded-lg px-4 py-2 mt-4 transition-colors bg-red-500 text-white hover:bg-red-600 active:bg-gray-600 outline-lime-300 focus-visible:outline-2"
 									>
 										Exit
 									</Link>
@@ -711,7 +711,7 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 				))}
 				{(!showFeedback) &&
 					<Button
-						className="border rounded-lg px-4 py-2 mt-8 cursor-pointer bg-lime-50 hover:bg-lime-300 active:bg-gray-300 outline-lime-300 focus-visible:outline-2"
+						className="border rounded-lg px-4 py-2 mt-8 cursor-pointer transition-colors bg-lime-50 hover:bg-lime-300 active:bg-gray-300 outline-lime-300 focus-visible:outline-2"
 						onClick={() => {
 							const submittedAnswers = userAnswers;
 							const answerKey = questions.map(question => question.solutions[version]);
@@ -730,7 +730,7 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 				}
 				{(showFeedback && (percentageCorrect >= threshold)) &&
 					<Button
-						className="min-w-32 border rounded-lg p-2 mt-8 cursor-pointer bg-lime-50 hover:bg-lime-300 active:bg-gray-300 outline-lime-300 focus-visible:outline-2"
+						className="min-w-32 border rounded-lg p-2 mt-8 cursor-pointer transition-colors bg-lime-50 hover:bg-lime-300 active:bg-gray-300 outline-lime-300 focus-visible:outline-2"
 						onClick={() => { advance(percentageCorrect, threshold); }}
 					>
 						Next
@@ -738,7 +738,7 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 				}
 				{(showFeedback && (percentageCorrect < threshold)) &&
 					<Button
-						className="min-w-32 border rounded-lg p-2 mt-8 cursor-pointer bg-lime-50 hover:bg-lime-300 active:bg-gray-300 outline-lime-300 focus-visible:outline-2"
+						className="min-w-32 border rounded-lg p-2 mt-8 cursor-pointer transition-colors bg-lime-50 hover:bg-lime-300 active:bg-gray-300 outline-lime-300 focus-visible:outline-2"
 						onClick={() => { advance(percentageCorrect, threshold); }}>
 						Retry
 					</Button>

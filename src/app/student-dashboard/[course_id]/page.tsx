@@ -156,7 +156,7 @@ export default async function StudentDashboard({ params }: { params: CourseParam
 							<Row
 								key={assignment.assignment_id}
 								href={`../question-page/${course_id}/${assignment.assignment_id}`}
-								className="hover:bg-lime-50 cursor-pointer focus-within:bg-lime-50 active:bg-lime-300 border-b border-gray-400"
+								className="transition-colors hover:bg-lime-50 cursor-pointer focus-within:bg-lime-50 active:bg-lime-300 border-b border-gray-400"
 							>
 								<Cell className="pl-4 py-4"><h2 className="truncate">{assignment.assignment_name}</h2></Cell>
 								<Cell>{getPercentage(assignment.block_count, assignment.submission?.blocks_complete ?? 0)}</Cell>
