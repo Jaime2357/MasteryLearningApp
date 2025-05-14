@@ -690,7 +690,7 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 											<span className="font-semibold in-data-focus-visible:underline">See Explanation</span>
 										</Button>
 									</Heading>
-									<DisclosurePanel className="mt-4 bg-lime-50 p-6 rounded-xl border">
+									<DisclosurePanel className="mt-2 bg-lime-50 p-6 rounded-xl border">
 										{question.feedback[version] && <p className="mt-4">{question.feedback[version]}</p>}
 										{/* Existing feedback media display */}
 										{(feedbackImageUrls[index]?.[version] ||
