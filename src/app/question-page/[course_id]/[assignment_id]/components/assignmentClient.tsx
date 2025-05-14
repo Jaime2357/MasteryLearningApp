@@ -4,8 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Check, ChevronLeft, Circle, X } from "lucide-react";
-import { Button, Dialog, DialogTrigger, Heading, Input, Label, Modal, ModalOverlay, Radio, RadioGroup, TextField } from "@/components/react-aria";
+import { Check, ChevronLeft, ChevronRight, Circle, X } from "lucide-react";
+import { Button, Dialog, DialogTrigger, Disclosure, DisclosurePanel, Heading, Input, Label, Modal, ModalOverlay, Radio, RadioGroup, TextField } from "@/components/react-aria";
+import Image from "next/image";
 
 type AssignmentName = {
 	assignment_name: string;
@@ -54,45 +55,43 @@ const FeedbackMedia: React.FC<{ image?: string; video?: string }> = ({ image, vi
 	const youtubeId = video && isYouTube ? getYouTubeId(video) : null;
 
 	return (
-		<div style={{ margin: '10px 0', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+		<>
 			{image && (
-				<img
+				<Image
+					className="w-full object-contain"
+					alt="feedback visual aid"
 					src={image}
-					alt="Feedback visual aid"
-					style={{
-						width: '120px',
-						height: '120px',
-						objectFit: 'cover',
-						borderRadius: '4px'
-					}}
 				/>
+				// <img
+				// 	src={image}
+				// 	alt="Feedback visual aid"
+				// 	style={{
+				// 		width: '120px',
+				// 		height: '120px',
+				// 		objectFit: 'cover',
+				// 		borderRadius: '4px'
+				// 	}}
+				// />
 			)}
 			{video && isYouTube && youtubeId && (
-				<div style={{ position: 'relative', paddingBottom: '56.25%', height: 0 }}>
+				<div className="relative pb-[56.25%] pt-[35px] h-0 overflow-hidden">
 					<iframe
 						src={`https://www.youtube.com/embed/${youtubeId}`}
 						title="YouTube feedback video"
 						allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
 						allowFullScreen
-						style={{
-							position: 'absolute',
-							top: 0,
-							left: 0,
-							width: '100%',
-							height: '100%',
-							border: 'none'
-						}}
+						className="absolute top-0 left-0 w-full h-full rounded-lg"
 					/>
 				</div>
 			)}
 			{video && !isYouTube && (
 				<video
+					className="w-full"
 					controls
 					src={video}
-					style={{ width: '320px', maxWidth: '100%', borderRadius: '4px' }}
 				/>
 			)}
-		</div>
+		</>
 	);
 };
 
@@ -562,7 +561,7 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 						key={index}
 						className="pt-8"
 					>
-						<div className="flex items-end">
+						<div className="flex items-center">
 							<h2 className="text-2xl font-bold inline-block">{`Question ${index + 1}`}</h2>
 							{
 								showFeedback &&
@@ -684,15 +683,28 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 										`${question.MCQ_options[version][Number(question.solutions[version])]}` :
 										question.solutions[version]
 								}.</p>
-								<p className="mt-4">Feedback: {question.feedback[version]}</p>
-								{/* Existing feedback media display */}
-								{(feedbackImageUrls[index]?.[version] ||
-									(question.feedback_videos && question.feedback_videos[version])) && (
-										<FeedbackMedia
-											image={feedbackImageUrls[index]?.[version]}
-											video={question.feedback_videos ? question.feedback_videos[version] : undefined}
-										/>
-									)}
+								<Disclosure className="mt-4">
+									<Heading>
+										<Button slot="trigger" className="flex items-center cursor-pointer outline-none">
+											<ChevronRight className="in-data-expanded:rotate-90 transition-transform ease-in-out" />
+											<span className="font-semibold in-data-focus-visible:underline">See Explanation</span>
+										</Button>
+									</Heading>
+									<DisclosurePanel className="mt-4 bg-lime-50 p-6 rounded-xl border">
+										{question.feedback[version] && <p className="mt-4">{question.feedback[version]}</p>}
+										{/* Existing feedback media display */}
+										{(feedbackImageUrls[index]?.[version] ||
+											(question.feedback_videos && question.feedback_videos[version])) && (
+												<div className="w-2/3">
+													<FeedbackMedia
+														image={feedbackImageUrls[index]?.[version]}
+														video={question.feedback_videos ? question.feedback_videos[version] : undefined}
+													/>
+												</div>
+											)}
+									</DisclosurePanel>
+								</Disclosure>
+
 							</>
 						}
 					</div>

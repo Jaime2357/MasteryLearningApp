@@ -15,3 +15,6 @@ export { Cell, Column, Row, Table, TableBody, TableHeader };
 
 import { Dialog, DialogTrigger, Heading, Modal, ModalOverlay } from "react-aria-components";
 export { Dialog, DialogTrigger, Heading, Modal, ModalOverlay };
+
+import { Disclosure, DisclosurePanel } from "react-aria-components"
+export { Disclosure, DisclosurePanel };
