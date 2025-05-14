@@ -5,7 +5,7 @@ import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Check, ChevronLeft, Circle, X } from "lucide-react";
-import { Button, Input, Label, Radio, RadioGroup, Text, TextField } from "@/components/react-aria";
+import { Button, Dialog, DialogTrigger, Heading, Input, Label, Modal, ModalOverlay, Radio, RadioGroup, TextField } from "@/components/react-aria";
 
 type AssignmentName = {
 	assignment_name: string;
@@ -520,11 +520,37 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 	return (
 		<>
 			<header className="px-8 pt-6 pb-4 bg-lime-300 border-b sticky top-0 flex justify-between items-center">
-				<Link href={`/student-dashboard/${courseId}`} className="outline-none group text-sm text-nowrap">
-					<ChevronLeft className="inline" strokeWidth={1} />
-					<span className="align-middle group-hover:underline group-focus-visible:underline">Exit Assignment</span>
-				</Link>
-				<h1 className="mx-4 truncate">
+				<DialogTrigger>
+					<Button className="outline-none group text-sm text-nowrap cursor-pointer">
+						<ChevronLeft className="inline" strokeWidth={1} />
+						<span className="align-middle group-hover:underline group-focus-visible:underline">Exit Assignment</span>
+					</Button>
+					<ModalOverlay className="fixed inset-0 bg-black/25 flex justify-center items-center">
+						<Modal>
+							<Dialog
+								className="p-6 border rounded-xl bg-white max-w-md"
+								role="alertdialog">
+								<Heading className="text-lg font-semibold" slot="title">Exit Assignment</Heading>
+								<p className="mt-2 text-gray-600">Are you sure you want to exit? Any work you have not submitted will not be saved.</p>
+								<div className="flex justify-end gap-2">
+									<Button
+										className="border rounded-lg px-4 py-2 mt-4 cursor-pointer bg-lime-50 hover:bg-lime-300 active:bg-gray-300 outline-lime-300 focus-visible:outline-2"
+										slot="close"
+									>
+										Cancel
+									</Button>
+									<Link
+										href={`/student-dashboard/${courseId}`}
+										className="border border-black rounded-lg px-4 py-2 mt-4 bg-red-500 text-white hover:bg-red-600 active:bg-gray-600 outline-lime-300 focus-visible:outline-2"
+									>
+										Exit
+									</Link>
+								</div>
+							</Dialog>
+						</Modal>
+					</ModalOverlay>
+				</DialogTrigger>
+				<h1 className="mx-4 truncate font-semibold">
 					{assignmentName.assignment_name}, Set {currentBlock + 1}
 				</h1>
 				<p className="text-sm text-nowrap">Attempts Left: {4 - version}</p>
