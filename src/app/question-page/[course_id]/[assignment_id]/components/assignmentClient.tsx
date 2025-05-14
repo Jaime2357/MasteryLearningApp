@@ -553,12 +553,21 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 							<RadioGroup
 								className="flex flex-col mt-4 gap-1"
 								value={userAnswers[index]}
-								onChange={choice =>
+								onChange={choice => {
+
 									setUserAnswers(
-										userAnswers.map((ans, i) =>
-											i === index ? choice : ans
-										)
+										// userAnswers.map((ans, i) =>
+										// 	i === index ? choice : ans
+										// )
+										prev => {
+											const newAnswers = [...prev];
+											newAnswers[index] = choice;
+											return newAnswers;
+										}
 									)
+									console.log(userAnswers);
+								}
+
 								}
 							>
 								<Label className="block text-sm">Your Answer</Label>
