@@ -511,15 +511,15 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 	}
 	return (
 		<>
-			<header className="bg-white border-b sticky top-0 p-5 flex justify-between items-center">
-				<Link href={`/student-dashboard/${courseId}`} className="outline-none text-gray-600 group text-sm text-nowrap">
+			<header className="px-8 pt-6 pb-4 bg-lime-300 border-b sticky top-0 flex justify-between items-center">
+				<Link href={`/student-dashboard/${courseId}`} className="outline-none group text-sm text-nowrap">
 					<ChevronLeft className="inline" strokeWidth={1} />
 					<span className="align-middle group-hover:underline group-focus-visible:underline">Exit Assignment</span>
 				</Link>
-				<h1 className="mx-4 text-gray-600 max-w-md truncate">
+				<h1 className="mx-4 truncate">
 					{assignmentName.assignment_name}, Set {currentBlock + 1}
 				</h1>
-				<p className="text-gray-600 text-sm text-nowrap">Attempts Left: {4 - version}</p>
+				<p className="text-sm text-nowrap">Attempts Left: {4 - version}</p>
 			</header>
 			<main className="mx-12 mt-6 max-w-4xl lg:mx-auto">
 				{questions.map((question, index) => (
