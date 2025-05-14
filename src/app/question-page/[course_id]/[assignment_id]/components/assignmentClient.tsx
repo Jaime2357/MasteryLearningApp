@@ -364,29 +364,74 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 
 		alert(`You scored ${totalPointsEarned}/${totalPossiblePoints} points (${percentCalc.toFixed(2)}%)!`);
 
-		setShowFeedback(true)
-	}
+		if (totalPointsEarned >= threshold || version + 1 >= 4) {
 
-	async function nextBlock() {
+			if (currentBlock + 1 >= blocks.length) {
 
-		const { data: completion } = await supabase
+				const { error: completionUpdateError } = await supabase
+					.from('student_submissions')
+					.update({ finished: true })
+					.eq('submission_id', submissionId);
+
+				if (completionUpdateError) {
+					console.error("Error Updating Completion")
+				}
+			}
+			else {
+
+				const { data: completion } = await supabase
+					.from('student_submissions')
+					.select('blocks_complete')
+					.eq('submission_id', submissionId)
+					.single();
+
+				if (!completion) {
+					console.error('Error reading assignment submission:');
+					return;
+				}
+
+				const { error: blockNumUpdateErr } = await supabase
+					.from('student_submissions')
+					.update({ blocks_complete: completion.blocks_complete + 1 })
+					.eq('submission_id', submissionId);
+
+				if (blockNumUpdateErr) {
+					console.error('Error updating assignment submission:', error);
+				}
+
+				const { data: savedBlock } = await supabase
+					.from('student_submissions')
+					.select('current_block')
+					.eq('submission_id', submissionId)
+					.single();
+
+				if (!savedBlock) {
+					console.error('Error reading assignment submission:');
+					return;
+				}
+
+				const { } = await supabase
+					.from('student_submissions')
+					.update({ current_block: savedBlock.current_block + 1, current_version: 0 })
+					.eq('submission_id', submissionId);
+			}
+		}
+		else{
+			const { data: savedVersion } = await supabase
 			.from('student_submissions')
-			.select('blocks_complete')
+			.select('current_version')
 			.eq('submission_id', submissionId)
 			.single();
 
-		if (!completion) {
+		if (!savedVersion) {
 			console.error('Error reading assignment submission:');
 			return;
 		}
 
-		const { error } = await supabase
+		const { } = await supabase
 			.from('student_submissions')
-			.update({ blocks_complete: completion.blocks_complete + 1 })
+			.update({ current_version: savedVersion.current_version + 1 })
 			.eq('submission_id', submissionId);
-
-		if (error) {
-			console.error('Error updating assignment submission:', error);
 		}
 
 		const { data: scores } = await supabase
@@ -428,37 +473,16 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 			.update({ block_scores: newScoreArray })
 			.eq("submission_id", submissionId);
 
+		setShowFeedback(true)
+	}
+
+	async function nextBlock() {
 
 		if (currentBlock + 1 >= blocks.length) {
 			alert("You have completed all blocks!");
-
-			const { error: completionUpdateError } = await supabase
-				.from('student_submissions')
-				.update({ finished: true })
-				.eq('submission_id', submissionId);
-
-			if (completionUpdateError) {
-				console.error("Error Updating Completion")
-			}
 			router.push(`/assignment-grade-view/${courseId}/${assignmentId}`);
 			return
 		}
-
-		const { data: savedBlock } = await supabase
-			.from('student_submissions')
-			.select('current_block')
-			.eq('submission_id', submissionId)
-			.single();
-
-		if (!savedBlock) {
-			console.error('Error reading assignment submission:');
-			return;
-		}
-
-		const { } = await supabase
-			.from('student_submissions')
-			.update({ current_block: savedBlock.current_block + 1, current_version: 0 })
-			.eq('submission_id', submissionId);
 
 		setCurrentBlock(currentBlock + 1);
 
