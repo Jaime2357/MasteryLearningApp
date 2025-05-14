@@ -4,8 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronLeft, Circle } from "lucide-react";
-import { Button, Input, Label, Radio, RadioGroup, TextField } from "@/components/react-aria";
+import { Check, ChevronLeft, Circle, X } from "lucide-react";
+import { Button, Input, Label, Radio, RadioGroup, Text, TextField } from "@/components/react-aria";
 
 type AssignmentName = {
 	assignment_name: string;
@@ -116,6 +116,7 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 	const [userAnswers, setUserAnswers] = useState<string[]>([]);
 	const [questionImageUrls, setQuestionImageUrls] = useState<string[][]>([]);
 	const [feedbackImageUrls, setFeedbackImageUrls] = useState<string[][]>([]);
+	const [answerScores, setAnswerScores] = useState<number[]>([])
 
 	const supabase = createClient();
 
@@ -308,6 +309,8 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 		if (!gradedAnswers) {
 			gradedAnswers = [0];
 		}
+
+		setAnswerScores(gradedAnswers);
 
 		// Calculate total points earned
 		const totalPointsEarned = gradedAnswers.reduce<number>(
@@ -507,6 +510,10 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 
 	console.log(percentageCorrect, '<', threshold)
 
+	const isQuestionCorrect = (index: number): boolean => {
+		return answerScores[index] > 0;
+	}
+
 	if (!initialized) {
 		return <div> Loading... </div>
 	}
@@ -529,7 +536,23 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 						key={index}
 						className="pt-8"
 					>
-						<h2 className="text-2xl font-bold inline">{`Question ${index + 1}`}</h2>
+						<div className="flex items-end">
+							<h2 className="text-2xl font-bold inline-block">{`Question ${index + 1}`}</h2>
+							{
+								showFeedback &&
+								(isQuestionCorrect(index) ?
+									<span>
+										<Check className="inline ml-2 text-lime-500"></Check>
+										<span className="ml-0.5 align-middle text-sm">Correct</span>
+									</span>
+									:
+									<span>
+										<X className="inline ml-2 text-red-500"></X>
+										<span className="ml-0.5 align-middle text-sm">Incorrect</span>
+									</span>
+								)
+							}
+						</div>
 						<p className="text-gray-600">{`${question.points} point${question.points != 1 ? "s" : ""}`}</p>
 						<p className="mt-4 p-4 min-w-xs w-fit bg-gray-200 rounded-xl font-mono">{question.question_body[version]}</p>
 						{/* Display version-specific image if present */}
@@ -567,16 +590,16 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 								<Label className="block text-sm">Your Answer</Label>
 								{question.MCQ_options[version]
 									.filter(opt => opt?.trim())
-									.map((option, optIndex) => (
+									.map((option, optIndex) =>
 										<Radio
-											className="data-hovered:cursor-pointer w-fit"
 											key={optIndex}
+											className="data-hovered:cursor-pointer w-fit"
 											value={optIndex.toString()}
 										>
 											<Circle size={20} strokeWidth={1} className="inline in-data-selected:fill-lime-300"></Circle>
 											<span className="align-bottom ml-2">{option}</span>
 										</Radio>
-									))}
+									)}
 							</RadioGroup>
 							:
 							<TextField
@@ -626,17 +649,16 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 						}
 
 						{/* Feedback section with improved MCQ answer display */}
-						{(showFeedback) &&
-							<div>
-								<p> Correct Answer: {
+						{(showFeedback && !isQuestionCorrect(index)) &&
+							<>
+								<p className="mt-4 text-sm text-red-500">The correct answer was {
 									question.MCQ_options &&
 										question.MCQ_options[version]?.filter(opt => opt?.trim()).length >= 2 &&
 										!isNaN(Number(question.solutions[version])) ?
-										`${String.fromCharCode(65 + Number(question.solutions[version]))}. ${question.MCQ_options[version][Number(question.solutions[version])]
-										}` :
+										`${question.MCQ_options[version][Number(question.solutions[version])]}` :
 										question.solutions[version]
-								}</p>
-								<p> Feedback: {question.feedback[version]}</p>
+								}.</p>
+								<p className="mt-4">Feedback: {question.feedback[version]}</p>
 								{/* Existing feedback media display */}
 								{(feedbackImageUrls[index]?.[version] ||
 									(question.feedback_videos && question.feedback_videos[version])) && (
@@ -645,7 +667,7 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 											video={question.feedback_videos ? question.feedback_videos[version] : undefined}
 										/>
 									)}
-							</div>
+							</>
 						}
 					</div>
 				))}
@@ -669,17 +691,22 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 					</Button>
 				}
 				{(showFeedback && (percentageCorrect >= threshold)) &&
-					<button onClick={() => { advance(percentageCorrect, threshold); }}>
+					<Button
+						className="min-w-32 border rounded-lg p-2 mt-8 cursor-pointer bg-lime-50 hover:bg-lime-300 active:bg-gray-300 outline-lime-300 focus-visible:outline-2"
+						onClick={() => { advance(percentageCorrect, threshold); }}
+					>
 						Next
-					</button>
+					</Button>
 				}
 				{(showFeedback && (percentageCorrect < threshold)) &&
-					<button onClick={() => { advance(percentageCorrect, threshold); }}>
+					<Button
+						className="min-w-32 border rounded-lg p-2 mt-8 cursor-pointer bg-lime-50 hover:bg-lime-300 active:bg-gray-300 outline-lime-300 focus-visible:outline-2"
+						onClick={() => { advance(percentageCorrect, threshold); }}>
 						Retry
-					</button>
+					</Button>
 				}
 				{/* </Form> */}
-			</main>
+			</main >
 
 			{/* This div was to simulate page scroll for testing. */}
 			{/* <div className="h-screen"></div> */}
