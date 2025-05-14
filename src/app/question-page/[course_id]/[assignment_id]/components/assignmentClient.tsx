@@ -552,79 +552,32 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 							question.MCQ_options[version]?.filter(opt => opt?.trim()).length >= 2 ?
 							<RadioGroup
 								className="flex flex-col mt-4 gap-1"
+								defaultValue={null}
+								isDisabled={showFeedback}
 								value={userAnswers[index]}
-								onChange={choice => {
-
-									setUserAnswers(
-										// userAnswers.map((ans, i) =>
-										// 	i === index ? choice : ans
-										// )
-										prev => {
-											const newAnswers = [...prev];
-											newAnswers[index] = choice;
-											return newAnswers;
-										}
-									)
-									console.log(userAnswers);
-								}
-
+								onChange={choice => setUserAnswers(
+									prev => {
+										const newAnswers = [...prev];
+										newAnswers[index] = choice;
+										return newAnswers;
+									}
+								)
 								}
 							>
 								<Label className="block text-sm">Your Answer</Label>
 								{question.MCQ_options[version]
 									.filter(opt => opt?.trim())
 									.map((option, optIndex) => (
-										// <div key={optIndex} style={{ margin: '5px 0' }}>
 										<Radio
-											className="group hover:cursor-pointer w-fit"
+											className="data-hovered:cursor-pointer w-fit"
 											key={optIndex}
-											// id={`q${index}-opt${optIndex}`}
-											// name={`question-${index}`}
 											value={optIndex.toString()}
-										// checked={userAnswers[index] === optIndex.toString()}
-										// onChange={() =>
-										// 	setUserAnswers(
-										// 		userAnswers.map((ans, i) =>
-										// 			i === index ? optIndex.toString() : ans
-										// 		)
-										// 	)
-										// }
 										>
-											<Circle size={20} strokeWidth={1} className="inline group-data-selected:fill-lime-300"></Circle>
+											<Circle size={20} strokeWidth={1} className="inline in-data-selected:fill-lime-300"></Circle>
 											<span className="align-bottom ml-2">{option}</span>
-											{/* {String.fromCharCode(65 + optIndex)}. {option} */}
-											{/* <label htmlFor={`q${index}-opt${optIndex}`}>
-												{String.fromCharCode(65 + optIndex)}. {option}
-											</label> */}
 										</Radio>
-										// </div>
 									))}
 							</RadioGroup>
-							// <div className="mcq-options" style={{ margin: '10px 0' }}>
-							// 	{question.MCQ_options[version]
-							// 		.filter(opt => opt?.trim())
-							// 		.map((option, optIndex) => (
-							// 			<div key={optIndex} style={{ margin: '5px 0' }}>
-							// 				<input
-							// 					type="radio"
-							// 					id={`q${index}-opt${optIndex}`}
-							// 					name={`question-${index}`}
-							// 					value={optIndex.toString()}
-							// 					checked={userAnswers[index] === optIndex.toString()}
-							// 					onChange={() =>
-							// 						setUserAnswers(
-							// 							userAnswers.map((ans, i) =>
-							// 								i === index ? optIndex.toString() : ans
-							// 							)
-							// 						)
-							// 					}
-							// 				/>
-							// 				<label htmlFor={`q${index}-opt${optIndex}`} style={{ marginLeft: '8px' }}>
-							// 					{String.fromCharCode(65 + optIndex)}. {option}
-							// 				</label>
-							// 			</div>
-							// 		))}
-							// </div>
 							:
 							<TextField
 								className="mt-3"
