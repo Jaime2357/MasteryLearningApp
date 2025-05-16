@@ -48,6 +48,7 @@ export async function createInstructor(formData: FormData) {
     }
 
     const { data: signupReturn, error: signupError } = await supabase.auth.signUp(loginData);
+    console.log()
 
     if (signupError) {
         console.error("Error creating user: ", signupError.message)
