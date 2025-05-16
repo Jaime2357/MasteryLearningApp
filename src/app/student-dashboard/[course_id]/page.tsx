@@ -147,17 +147,17 @@ export default async function StudentDashboard({ params }: { params: CourseParam
 					className="mt-6 min-w-md max-w-4xl w-full table-fixed"
 				>
 					<TableHeader className="text-left text-sm border-b">
-						<Column isRowHeader className="pl-4 py-2 w-2/5">Assignment</Column>
-						<Column>Progress</Column>
-						<Column>Due Date</Column>
-						<Column>Status</Column>
+						<Column isRowHeader className="pl-4 py-2 w-2/5 font-semibold">Assignment</Column>
+						<Column className="font-semibold">Progress</Column>
+						<Column className="font-semibold">Due Date</Column>
+						<Column className="font-semibold">Status</Column>
 					</TableHeader>
 					<TableBody>
 						{mappedAssignments.map(assignment =>
 							<Row
 								key={assignment.assignment_id}
 								href={`../question-page/${course_id}/${assignment.assignment_id}`}
-								className="hover:bg-lime-50 hover:cursor-pointer focus-within:bg-lime-50 active:bg-lime-300 border-b border-gray-400"
+								className="transition-colors hover:bg-lime-50 cursor-pointer focus-within:bg-lime-50 active:bg-lime-300 border-b border-gray-400"
 							>
 								<Cell className="pl-4 py-4"><h2 className="truncate">{assignment.assignment_name}</h2></Cell>
 								<Cell>{getPercentage(assignment.block_count, assignment.submission?.blocks_complete ?? 0)}</Cell>

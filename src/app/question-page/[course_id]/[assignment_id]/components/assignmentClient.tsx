@@ -4,8 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronLeft } from "lucide-react";
-import { Button, Input, Label, TextField } from "@/components/react-aria";
+import { Check, ChevronLeft, ChevronRight, Circle, X } from "lucide-react";
+import { Button, Dialog, DialogTrigger, Disclosure, DisclosurePanel, Heading, Input, Label, Modal, ModalOverlay, Radio, RadioGroup, TextField } from "@/components/react-aria";
+import Image from "next/image";
 
 type AssignmentName = {
 	assignment_name: string;
@@ -54,45 +55,43 @@ const FeedbackMedia: React.FC<{ image?: string; video?: string }> = ({ image, vi
 	const youtubeId = video && isYouTube ? getYouTubeId(video) : null;
 
 	return (
-		<div style={{ margin: '10px 0', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+		<>
 			{image && (
-				<img
+				<Image
+					className="w-full object-contain"
+					alt="feedback visual aid"
 					src={image}
-					alt="Feedback visual aid"
-					style={{
-						width: '120px',
-						height: '120px',
-						objectFit: 'cover',
-						borderRadius: '4px'
-					}}
 				/>
+				// <img
+				// 	src={image}
+				// 	alt="Feedback visual aid"
+				// 	style={{
+				// 		width: '120px',
+				// 		height: '120px',
+				// 		objectFit: 'cover',
+				// 		borderRadius: '4px'
+				// 	}}
+				// />
 			)}
 			{video && isYouTube && youtubeId && (
-				<div style={{ position: 'relative', paddingBottom: '56.25%', height: 0 }}>
+				<div className="relative pb-[56.25%] pt-[35px] h-0 overflow-hidden">
 					<iframe
 						src={`https://www.youtube.com/embed/${youtubeId}`}
 						title="YouTube feedback video"
 						allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
 						allowFullScreen
-						style={{
-							position: 'absolute',
-							top: 0,
-							left: 0,
-							width: '100%',
-							height: '100%',
-							border: 'none'
-						}}
+						className="absolute top-0 left-0 w-full h-full rounded-lg"
 					/>
 				</div>
 			)}
 			{video && !isYouTube && (
 				<video
+					className="w-full"
 					controls
 					src={video}
-					style={{ width: '320px', maxWidth: '100%', borderRadius: '4px' }}
 				/>
 			)}
-		</div>
+		</>
 	);
 };
 
@@ -116,6 +115,7 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 	const [userAnswers, setUserAnswers] = useState<string[]>([]);
 	const [questionImageUrls, setQuestionImageUrls] = useState<string[][]>([]);
 	const [feedbackImageUrls, setFeedbackImageUrls] = useState<string[][]>([]);
+	const [answerScores, setAnswerScores] = useState<number[]>([])
 
 	const supabase = createClient();
 
@@ -309,6 +309,8 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 			gradedAnswers = [0];
 		}
 
+		setAnswerScores(gradedAnswers);
+
 		// Calculate total points earned
 		const totalPointsEarned = gradedAnswers.reduce<number>(
 			(sum, grade) => sum + grade,
@@ -362,29 +364,74 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 
 		alert(`You scored ${totalPointsEarned}/${totalPossiblePoints} points (${percentCalc.toFixed(2)}%)!`);
 
-		setShowFeedback(true)
-	}
+		if ((totalPointsEarned/totalPossiblePoints)*100 >= threshold || version + 1 >= 4) {
 
-	async function nextBlock() {
+			if (currentBlock + 1 >= blocks.length) {
 
-		const { data: completion } = await supabase
-			.from('student_submissions')
-			.select('blocks_complete')
-			.eq('submission_id', submissionId)
-			.single();
+				const { error: completionUpdateError } = await supabase
+					.from('student_submissions')
+					.update({ finished: true })
+					.eq('submission_id', submissionId);
 
-		if (!completion) {
-			console.error('Error reading assignment submission:');
-			return;
+				if (completionUpdateError) {
+					console.error("Error Updating Completion")
+				}
+			}
+			else {
+
+				const { data: completion } = await supabase
+					.from('student_submissions')
+					.select('blocks_complete')
+					.eq('submission_id', submissionId)
+					.single();
+
+				if (!completion) {
+					console.error('Error reading assignment submission:');
+					return;
+				}
+
+				const { error: blockNumUpdateErr } = await supabase
+					.from('student_submissions')
+					.update({ blocks_complete: completion.blocks_complete + 1 })
+					.eq('submission_id', submissionId);
+
+				if (blockNumUpdateErr) {
+					console.error('Error updating assignment submission:', error);
+				}
+
+				const { data: savedBlock } = await supabase
+					.from('student_submissions')
+					.select('current_block')
+					.eq('submission_id', submissionId)
+					.single();
+
+				if (!savedBlock) {
+					console.error('Error reading assignment submission:');
+					return;
+				}
+
+				const { } = await supabase
+					.from('student_submissions')
+					.update({ current_block: savedBlock.current_block + 1, current_version: 0 })
+					.eq('submission_id', submissionId);
+			}
 		}
+		else {
+			const { data: savedVersion } = await supabase
+				.from('student_submissions')
+				.select('current_version')
+				.eq('submission_id', submissionId)
+				.single();
 
-		const { error } = await supabase
-			.from('student_submissions')
-			.update({ blocks_complete: completion.blocks_complete + 1 })
-			.eq('submission_id', submissionId);
+			if (!savedVersion) {
+				console.error('Error reading assignment submission:');
+				return;
+			}
 
-		if (error) {
-			console.error('Error updating assignment submission:', error);
+			const { } = await supabase
+				.from('student_submissions')
+				.update({ current_version: savedVersion.current_version + 1 })
+				.eq('submission_id', submissionId);
 		}
 
 		const { data: scores } = await supabase
@@ -426,37 +473,16 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 			.update({ block_scores: newScoreArray })
 			.eq("submission_id", submissionId);
 
+		setShowFeedback(true)
+	}
+
+	async function nextBlock() {
 
 		if (currentBlock + 1 >= blocks.length) {
 			alert("You have completed all blocks!");
-
-			const { error: completionUpdateError } = await supabase
-				.from('student_submissions')
-				.update({ finished: true })
-				.eq('submission_id', submissionId);
-
-			if (completionUpdateError) {
-				console.error("Error Updating Completion")
-			}
 			router.push(`/assignment-grade-view/${courseId}/${assignmentId}`);
 			return
 		}
-
-		const { data: savedBlock } = await supabase
-			.from('student_submissions')
-			.select('current_block')
-			.eq('submission_id', submissionId)
-			.single();
-
-		if (!savedBlock) {
-			console.error('Error reading assignment submission:');
-			return;
-		}
-
-		const { } = await supabase
-			.from('student_submissions')
-			.update({ current_block: savedBlock.current_block + 1, current_version: 0 })
-			.eq('submission_id', submissionId);
 
 		setCurrentBlock(currentBlock + 1);
 
@@ -505,7 +531,9 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 		fetchQuestions();
 	}, [currentBlock]);
 
-	console.log(percentageCorrect, '<', threshold)
+	const isQuestionCorrect = (index: number): boolean => {
+		return answerScores[index] > 0;
+	}
 
 	if (!initialized) {
 		return <div> Loading... </div>
@@ -513,11 +541,37 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 	return (
 		<>
 			<header className="px-8 pt-6 pb-4 bg-lime-300 border-b sticky top-0 flex justify-between items-center">
-				<Link href={`/student-dashboard/${courseId}`} className="outline-none group text-sm text-nowrap">
-					<ChevronLeft className="inline" strokeWidth={1} />
-					<span className="align-middle group-hover:underline group-focus-visible:underline">Exit Assignment</span>
-				</Link>
-				<h1 className="mx-4 truncate">
+				<DialogTrigger>
+					<Button className="outline-none group text-sm text-nowrap cursor-pointer">
+						<ChevronLeft className="inline" strokeWidth={1} />
+						<span className="align-middle group-hover:underline group-focus-visible:underline">Exit Assignment</span>
+					</Button>
+					<ModalOverlay className="fixed inset-0 bg-black/25 flex justify-center items-center">
+						<Modal>
+							<Dialog
+								className="p-6 border rounded-xl bg-white max-w-md"
+								role="alertdialog">
+								<Heading className="text-lg font-semibold" slot="title">Exit Assignment</Heading>
+								<p className="mt-2 text-gray-600">Are you sure you want to exit? You must submit in order to save your work.</p>
+								<div className="flex justify-end gap-2">
+									<Button
+										className="border rounded-lg px-4 py-2 mt-4 cursor-pointer transition-colors bg-lime-50 hover:bg-lime-300 active:bg-gray-300 outline-lime-300 focus-visible:outline-2"
+										slot="close"
+									>
+										Cancel
+									</Button>
+									<Link
+										href={`/student-dashboard/${courseId}`}
+										className="border border-black rounded-lg px-4 py-2 mt-4 transition-colors bg-red-500 text-white hover:bg-red-600 active:bg-gray-600 outline-lime-300 focus-visible:outline-2"
+									>
+										Exit
+									</Link>
+								</div>
+							</Dialog>
+						</Modal>
+					</ModalOverlay>
+				</DialogTrigger>
+				<h1 className="mx-4 truncate font-semibold">
 					{assignmentName.assignment_name}, Set {currentBlock + 1}
 				</h1>
 				<p className="text-sm text-nowrap">Attempts Left: {4 - version}</p>
@@ -529,7 +583,23 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 						key={index}
 						className="pt-8"
 					>
-						<h2 className="text-2xl font-bold inline">{`Question ${index + 1}`}</h2>
+						<div className="flex items-center">
+							<h2 className="text-2xl font-bold inline-block">{`Question ${index + 1}`}</h2>
+							{
+								showFeedback &&
+								(isQuestionCorrect(index) ?
+									<span>
+										<Check className="inline ml-2 text-lime-500"></Check>
+										<span className="ml-0.5 align-middle text-sm">Correct</span>
+									</span>
+									:
+									<span>
+										<X className="inline ml-2 text-red-500"></X>
+										<span className="ml-0.5 align-middle text-sm">Incorrect</span>
+									</span>
+								)
+							}
+						</div>
 						<p className="text-gray-600">{`${question.points} point${question.points != 1 ? "s" : ""}`}</p>
 						<p className="mt-4 p-4 min-w-xs w-fit bg-gray-200 rounded-xl font-mono">{question.question_body[version]}</p>
 						{/* Display version-specific image if present */}
@@ -549,35 +619,38 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 						)}
 						{/* MCQ options if available, otherwise text input */}
 						{question.MCQ_options &&
-							question.MCQ_options[version]?.filter(opt => opt?.trim()).length >= 2 ? (
-							<div className="mcq-options" style={{ margin: '10px 0' }}>
+							question.MCQ_options[version]?.filter(opt => opt?.trim()).length >= 2 ?
+							<RadioGroup
+								className="flex flex-col mt-4 gap-1"
+								defaultValue={null}
+								isDisabled={showFeedback}
+								value={userAnswers[index]}
+								onChange={choice => setUserAnswers(
+									prev => {
+										const newAnswers = [...prev];
+										newAnswers[index] = choice;
+										return newAnswers;
+									}
+								)
+								}
+							>
+								<Label className="block text-sm">Your Answer</Label>
 								{question.MCQ_options[version]
 									.filter(opt => opt?.trim())
-									.map((option, optIndex) => (
-										<div key={optIndex} style={{ margin: '5px 0' }}>
-											<input
-												type="radio"
-												id={`q${index}-opt${optIndex}`}
-												name={`question-${index}`}
-												value={optIndex.toString()}
-												checked={userAnswers[index] === optIndex.toString()}
-												onChange={() =>
-													setUserAnswers(
-														userAnswers.map((ans, i) =>
-															i === index ? optIndex.toString() : ans
-														)
-													)
-												}
-											/>
-											<label htmlFor={`q${index}-opt${optIndex}`} style={{ marginLeft: '8px' }}>
-												{String.fromCharCode(65 + optIndex)}. {option}
-											</label>
-										</div>
-									))}
-							</div>
-						) :
+									.map((option, optIndex) =>
+										<Radio
+											key={optIndex}
+											className="data-hovered:cursor-pointer w-fit"
+											value={optIndex.toString()}
+										>
+											<Circle size={20} strokeWidth={1} className="inline in-data-selected:fill-lime-300"></Circle>
+											<span className="align-bottom ml-2">{option}</span>
+										</Radio>
+									)}
+							</RadioGroup>
+							:
 							<TextField
-								className="mt-2"
+								className="mt-3"
 								type="text"
 								inputMode="decimal"
 								autoComplete="off"
@@ -623,32 +696,44 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 						}
 
 						{/* Feedback section with improved MCQ answer display */}
-						{(showFeedback) &&
-							<div>
-								<p> Correct Answer: {
+						{(showFeedback && !isQuestionCorrect(index)) &&
+							<>
+								<p className="mt-4 text-sm text-red-500">The correct answer was {
 									question.MCQ_options &&
 										question.MCQ_options[version]?.filter(opt => opt?.trim()).length >= 2 &&
 										!isNaN(Number(question.solutions[version])) ?
-										`${String.fromCharCode(65 + Number(question.solutions[version]))}. ${question.MCQ_options[version][Number(question.solutions[version])]
-										}` :
+										`${question.MCQ_options[version][Number(question.solutions[version])]}` :
 										question.solutions[version]
-								}</p>
-								<p> Feedback: {question.feedback[version]}</p>
-								{/* Existing feedback media display */}
-								{(feedbackImageUrls[index]?.[version] ||
-									(question.feedback_videos && question.feedback_videos[version])) && (
-										<FeedbackMedia
-											image={feedbackImageUrls[index]?.[version]}
-											video={question.feedback_videos ? question.feedback_videos[version] : undefined}
-										/>
-									)}
-							</div>
+								}.</p>
+								<Disclosure className="mt-4">
+									<Heading>
+										<Button slot="trigger" className="flex items-center cursor-pointer outline-none">
+											<ChevronRight className="in-data-expanded:rotate-90 transition-transform ease-in-out" />
+											<span className="font-semibold in-data-focus-visible:underline">See Explanation</span>
+										</Button>
+									</Heading>
+									<DisclosurePanel className="mt-2 bg-lime-50 p-6 rounded-xl border">
+										{question.feedback[version] && <p className="mt-4">{question.feedback[version]}</p>}
+										{/* Existing feedback media display */}
+										{(feedbackImageUrls[index]?.[version] ||
+											(question.feedback_videos && question.feedback_videos[version])) && (
+												<div className="w-2/3">
+													<FeedbackMedia
+														image={feedbackImageUrls[index]?.[version]}
+														video={question.feedback_videos ? question.feedback_videos[version] : undefined}
+													/>
+												</div>
+											)}
+									</DisclosurePanel>
+								</Disclosure>
+
+							</>
 						}
 					</div>
 				))}
 				{(!showFeedback) &&
 					<Button
-						className="border rounded-lg p-2 mt-8 cursor-pointer bg-lime-50 hover:bg-lime-300 active:bg-gray-300 outline-lime-300 focus-visible:outline-2"
+						className="border rounded-lg px-4 py-2 mt-8 cursor-pointer transition-colors bg-lime-50 hover:bg-lime-300 active:bg-gray-300 outline-lime-300 focus-visible:outline-2"
 						onClick={() => {
 							const submittedAnswers = userAnswers;
 							const answerKey = questions.map(question => question.solutions[version]);
@@ -666,17 +751,22 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 					</Button>
 				}
 				{(showFeedback && (percentageCorrect >= threshold)) &&
-					<button onClick={() => { advance(percentageCorrect, threshold); }}>
+					<Button
+						className="min-w-32 border rounded-lg p-2 mt-8 cursor-pointer transition-colors bg-lime-50 hover:bg-lime-300 active:bg-gray-300 outline-lime-300 focus-visible:outline-2"
+						onClick={() => { advance(percentageCorrect, threshold); }}
+					>
 						Next
-					</button>
+					</Button>
 				}
 				{(showFeedback && (percentageCorrect < threshold)) &&
-					<button onClick={() => { advance(percentageCorrect, threshold); }}>
+					<Button
+						className="min-w-32 border rounded-lg p-2 mt-8 cursor-pointer transition-colors bg-lime-50 hover:bg-lime-300 active:bg-gray-300 outline-lime-300 focus-visible:outline-2"
+						onClick={() => { advance(percentageCorrect, threshold); }}>
 						Retry
-					</button>
+					</Button>
 				}
 				{/* </Form> */}
-			</main>
+			</main >
 
 			{/* This div was to simulate page scroll for testing. */}
 			{/* <div className="h-screen"></div> */}
