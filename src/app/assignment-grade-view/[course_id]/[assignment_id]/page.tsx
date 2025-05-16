@@ -276,51 +276,52 @@ export default async function AssignmentResultPage({ params }: { params: Assignm
 			<main className="mx-12 mt-6">
 				<h1 className="text-3xl font-bold">{assignmentData.assignment_name} Results</h1>
 				<p className="mt-4 text-lg font-semibold">Score: <span className="font-normal">{totalScore}%</span></p>
-				<p className="mt-2 text-lg font-semibold">Due Date: </p>
-				<p>{new Date(assignmentData.due_date).toLocaleString()}</p>
-				<p>
-					({(daysLeft < 1) && "Less than 1 day left to submit."}
+				<p className="mt-2 text-lg font-semibold">Due Date: <span className="font-normal">
+					{new Date(assignmentData.due_date).toLocaleString('en-US', {
+						month: 'long',   // "May"
+						day: 'numeric',  // "5"
+						year: 'numeric', // "2025"
+						hour: 'numeric', // "11"
+						minute: '2-digit', // "59"
+						hour12: true     // "PM"
+					})} ({(daysLeft < 1) && "Less than 1 day left to submit."}
 					{(daysLeft > 0) && `${daysLeft} days left to submit`})
+				</span>
 				</p>
 
 				{structuredData.blocks.map((block) => (
-					<div
-						key={block.blockNumber}>
-						<h2 className="mt-4 font-semibold text-lg">Question Set {block.blockNumber}:</h2>
-						{block.versions.map((version) => (
-							<div key={version.version}>
-								<p>Version {version.version}:</p>
-								{version.questions.map((question, index) => (
-									<div key={index}>
-										{question.image && (
-											<div style={{ margin: '10px 0' }}>
-												<img
-													src={question.image}
-													alt={`Question ${index + 1} visual aid`}
-													style={{ maxWidth: '200px', maxHeight: '200px', objectFit: 'cover', borderRadius: '4px' }}
-												/>
+					<div key={block.blockNumber} className="mt-4 p-4 min-w-xs w-fit bg-gray-200 rounded-xl font-mono relative">
+						<h2 className="mt-4 mb-2 font-semibold text-lg flex justify-between items-center">
+							<span>Question Set {block.blockNumber}:</span>
+							<span className="text-right font-bold">
+								{block.versions.flatMap(v => v.questions).reduce((sum, q) => sum + (q.grade ?? 0), 0)}/
+								{block.versions.flatMap(v => v.questions).reduce((sum, q) => sum + (q.pointsPossible ?? 0), 0)}
+							</span>
+						</h2>
+						{/* Group by question index */}
+						{block.versions[0]?.questions.map((_, questionIdx) => (
+							<div key={questionIdx} className="flex flex-row gap-4 mb-4">
+								{block.versions.map((version) => {
+									const question = version.questions[questionIdx];
+									return (
+										<div key={version.version} className="bg-white rounded shadow p-3 min-w-[220px] flex flex-col justify-between">
+											<div>
+												<p className="font-semibold mb-1">Version {version.version}</p>
+												<p className="indent-4">Question {questionIdx + 1}:</p>
+												<p className="indent-8">Submitted Answer: {question.submittedAnswer}</p>
+												<p className="indent-8 text-red-500">Correct Answer: {question.correctAnswerText}</p>
 											</div>
-										)}
-										{/* <p>Question {index + 1}: {question.questionText}</p> */}
-										<p className="indent-4">Question {index + 1}:</p>
-
-										{/* Remove the MCQ options display section entirely */}
-
-										<p className="indent-8">Submitted Answer: {
-											// Map submitted numeric answers to option text for MCQs
-											question.isMCQ && !isNaN(Number(question.submittedAnswer))
-												? `${String.fromCharCode(65 + Number(question.submittedAnswer))}. ${question.MCQ_options?.[Number(question.submittedAnswer)] || 'Invalid option'
-												}`
-												: question.submittedAnswer
-										}</p>
-										<p className="indent-8">Correct Answer: {question.correctAnswerText}</p>
-										<p className="indent-8">Points Earned: {question.grade ?? "0"}/{question.pointsPossible}</p>
-									</div>
-								))}
+											<div className="text-right mt-2 font-semibold">
+												{question.grade ?? "0"}/{question.pointsPossible}
+											</div>
+										</div>
+									);
+								})}
 							</div>
 						))}
 					</div>
 				))}
+
 			</main>
 		</>
 	);

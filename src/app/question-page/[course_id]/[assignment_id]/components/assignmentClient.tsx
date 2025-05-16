@@ -495,22 +495,6 @@ const AssignmentComponent: React.FC<ClientComponentProps> = ({
 			nextBlock();
 		}
 		else {
-			const { data: savedVersion } = await supabase
-				.from('student_submissions')
-				.select('current_version')
-				.eq('submission_id', submissionId)
-				.single();
-
-			if (!savedVersion) {
-				console.error('Error reading assignment submission:');
-				return;
-			}
-
-			const { } = await supabase
-				.from('student_submissions')
-				.update({ current_version: savedVersion.current_version + 1 })
-				.eq('submission_id', submissionId);
-
 			setVersion(version + 1);
 		}
 	}
