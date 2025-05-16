@@ -1,4 +1,7 @@
+import { logout } from '@/app/actions';
 import { createClient } from '@/utils/supabase/server';
+import { Button, Cell, Column, Row, Table, TableBody, TableHeader } from "@/components/react-aria";
+import { ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
@@ -95,11 +98,14 @@ export default async function AssignmentGradeList({ params }: { params: CoursePa
     }
 
     // Helper Function to find each student's total score
-    function getTotalScore(submission: Submissions, assignment: Assignment) {
+    function getTotalScore(submission: Submissions | undefined, assignment: Assignment) {
+        if (!submission) {
+            return 0
+        }
         if (!submission.block_scores) {
             return 0;
         }
-        if(assignment.total_points === 0){
+        if (assignment.total_points === 0) {
             return 100;
         }
         return parseFloat(((submission.block_scores.reduce((acc: number, curr: number) => acc + curr, 0)) / assignment.total_points * 100).toFixed(2));
@@ -107,34 +113,79 @@ export default async function AssignmentGradeList({ params }: { params: CoursePa
     }
 
     return (
-        <div>
-            <div>
-                <Link href={`/instructor-dashboard/${course_id}`}> Instructor Dashboard </Link>
-                <h1>Student Submissions</h1>
-                <h2> {assignment.assignment_name}</h2>
-                <p> {assignment.due_date}</p>
-            </div>
-            <div>
-                <ul>
-                    {mappedSubmissions.map((submission) => (
-                        <li key={submission.student_id}>
-                            <Link href={`/student-submission-overview/${course_id}/${submission.submission?.submission_id}`}>
-                                <h2>{submission.first_name} {submission.last_name}</h2>
-                            </Link>
-                            {submission.submission ? (
-                                <>
-                                    <p>Completion: {getPercentage(assignment.block_count, submission.submission.blocks_complete)}%</p>
-                                    <p>Total Score: {getTotalScore(submission.submission, assignment)}</p>
-                                    <p>Status: {submission.submission.finished ? 'Finished'
-                                        : `In Progress (${submission.submission.blocks_complete}/${assignment.block_count} Blocks)`}</p>
-                                </>
-                            ) : (
-                                <p> No submission found for this student</p>
-                            )}
-                        </li>
-                    ))}
-                </ul>
-            </div>
-        </div>
+        <>
+            {/* Navbar */}
+            <header className="px-8 pt-6 pb-4 border-b bg-lime-300">
+                <nav className="grid grid-cols-4">
+                    <Link href="/" className="col-start-2 col-end-4 text-center text-xl font-mono font-bold">Mastery Learning</Link>
+                    <Button onPress={logout} className="justify-self-end cursor-pointer text-sm hover:underline focus-visible:underline outline-none">
+                        Sign Out
+                    </Button>
+                </nav>
+            </header>
+            <Link href={`/instructor-dashboard/${course_id}`} className="block w-fit mt-6 ml-6 outline-none text-gray-600 group">
+                <ChevronLeft className="inline" strokeWidth={1} />
+                <span className="align-middle group-hover:underline group-focus-visible:underline">Back</span>
+            </Link>
+            <main className="mx-12 mt-6">
+
+                <div className="mb-4">
+                    <p className="text-3xl font-bold"> {assignment.assignment_name}</p>
+                    <p className="text-2xl">Submissions</p>
+                    <p className="mt-2 text-lg font-semibold">Due: <span className="font-normal">
+                        {new Date(assignment.due_date).toLocaleString('en-US', {
+                            month: 'long',   // "May"
+                            day: 'numeric',  // "5"
+                            year: 'numeric', // "2025"
+                            hour: 'numeric', // "11"
+                            minute: '2-digit', // "59"
+                            hour12: true     // "PM"
+                        })}
+                    </span>
+                    </p>
+                </div>
+
+
+
+                <Table
+                    aria-label="assignments"
+                    className="my-6 min-w-md max-w-4xl w-full table-fixed"
+                >
+                    <TableHeader className="text-left text-sm border-b">
+                        <Column isRowHeader className="pl-4 py-2 w-2/5 font-semibold">Student</Column>
+                        <Column className="w-1/5 font-semibold">Completion</Column>
+                        <Column className="w-1/5 font-semibold">Score</Column>
+                        <Column className="w-1/5"> Status </Column>
+                    </TableHeader>
+
+                    <TableBody>
+                        {mappedSubmissions.map(submission =>
+                            <Row
+                                key={submission.student_id}
+                                href={`/student-submission-overview/${course_id}/${submission.submission?.submission_id}`}
+                                className="group transition-colors hover:bg-lime-50 cursor-pointer focus-within:bg-lime-50 active:bg-lime-300 border-b border-gray-400"
+                            >
+                                <Cell className="pl-4 py-4">
+                                    <p>{submission.first_name} {submission.last_name}</p>
+                                </Cell>
+                                <Cell>
+                                    <p>{getPercentage(assignment.block_count, submission.submission?.blocks_complete)}%</p>
+                                </Cell>
+                                <Cell>
+                                    <p>{getTotalScore(submission.submission, assignment)}</p>
+                                </Cell>
+                                <Cell>
+                                    <p>
+                                        {submission.submission?.finished ? 'Finished'
+                                            : `In Progress (${submission.submission?.blocks_complete}/${assignment.block_count} Sets)`}
+                                    </p>
+                                </Cell>
+                            </Row>
+                        )}
+                    </TableBody>
+                </Table>
+
+            </main>
+        </>
     );
 }
