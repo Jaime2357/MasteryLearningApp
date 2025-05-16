@@ -22,14 +22,11 @@ export async function login(formData: FormData) {
     console.log('Please double check your email/password. Please also check that you have verified your email');
   }
 
-  if (error) {
-    redirect('/error')
+   if (error) {
+    // Redirect with error message as a search param
+    redirect(`/login?error=${encodeURIComponent("Invalid email or password")}`);
   }
 
   revalidatePath('/', 'layout')
   redirect('/')
-}
-
-export async function signup() {
-  redirect('/signup')
 }
