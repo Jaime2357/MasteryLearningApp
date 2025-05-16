@@ -222,7 +222,7 @@ export default async function SubmissionReviewPage({ params }: { params: Assignm
             </header>
 
             {/* Back to Dashboard */}
-            <Link href={`/student-dashboard/${course_id}`} className="block w-fit mt-6 ml-6 outline-none text-gray-600 group">
+            <Link href={`/assignment-grade-list/${course_id}/${submissionData.assignment_id}`} className="block w-fit mt-6 ml-6 outline-none text-gray-600 group">
                 <ChevronLeft className="inline" strokeWidth={1} />
                 <span className="align-middle group-hover:underline group-focus-visible:underline">Return to Submissions</span>
             </Link>

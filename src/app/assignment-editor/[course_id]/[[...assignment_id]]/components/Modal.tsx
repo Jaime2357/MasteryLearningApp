@@ -1,54 +1,49 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   children: React.ReactNode;
+  title?: string;
 }
 
-const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children }) => {
+const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content">
-        <button onClick={onClose} className="close-button">×</button>
-        {children}
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      aria-modal="true"
+      role="dialog"
+      tabIndex={-1}
+      onClick={onClose}
+    >
+      <div
+        className="relative bg-white rounded-xl shadow-lg w-full max-w-3xl mx-4 p-0 outline-none"
+        tabIndex={0}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        {title && (
+          <div className="px-6 pt-6 pb-2 border-b border-gray-200 flex items-center justify-between">
+            <h2 className="text-lg font-bold text-gray-800">{title}</h2>
+            <button
+              onClick={onClose}
+              aria-label="Close"
+              className="text-2xl text-gray-400 hover:text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-lime-400 rounded"
+            >
+              &times;
+            </button>
+          </div>
+        )}
+        {/* Scrollable content */}
+        <div className="px-6 py-4 overflow-y-auto max-h-[80vh]">
+          {children}
+        </div>
       </div>
-      <style jsx>{`
-        .modal-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          background: rgba(0, 0, 0, 0.5);
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          z-index: 1000;
-        }
-        .modal-content {
-          background: white;
-          padding: 2rem;
-          border-radius: 8px;
-          max-width: 90%;
-          max-height: 90vh;
-          overflow-y: auto;
-          position: relative;
-        }
-        .close-button {
-          position: absolute;
-          top: 1rem;
-          right: 1rem;
-          background: none;
-          border: none;
-          font-size: 1.5rem;
-          cursor: pointer;
-        }
-      `}</style>
     </div>
   );
 };
+
 
 export default Modal;

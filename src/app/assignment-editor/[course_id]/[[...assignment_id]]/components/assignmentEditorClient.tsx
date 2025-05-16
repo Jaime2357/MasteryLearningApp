@@ -5,12 +5,15 @@ import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Modal from './Modal';
+import { Button } from '@/components/react-aria';
+import { logout } from '@/app/actions';
 
 type Question = {
     question_id: number;
     question_body: string[];
     points: number;
     solutions: string[];
+    MCQ_options: string[] | null;
     question_image?: string[];
     image_urls?: string[];
 };
@@ -389,44 +392,78 @@ const AssignmentEditorComponent: React.FC<ClientComponentProps> = ({ instructor_
 
         return (
             <>
-                <h2>Select Questions</h2>
-                <input
-                    type="text"
-                    placeholder="Search questions..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    style={{ width: '100%', marginBottom: 12, padding: 8, fontSize: 16 }}
-                />
-                <ul className="question-list">
-                    {filteredQuestions.map((question) => (
-                        <li key={question.question_id} className="question-item">
-                            <label>
-                                <input
-                                    type="checkbox"
-                                    checked={selectedQuestionIds.includes(question.question_id)}
-                                    onChange={() => handleQuestionSelection(question.question_id)}
-                                />
-                                <div className="question-preview">
-                                    <p>{question.question_body.join(', ')}</p>
-                                    <div className="media-previews">
-                                        {question.image_urls?.map((url, idx) => (
-                                            <img
-                                                key={`preview-img-${idx}`}
-                                                src={url}
-                                                alt={`Preview ${idx + 1}`}
-                                                className="media-thumbnail"
-                                            />
-                                        ))}
-                                    </div>
+                <div className="overflow-y-auto" style={{ maxHeight: '60vh' }}>
+                    {filteredQuestions.map((question) => {
+                        const questionVersions = question.question_body || [];
+                        const solutionVersions = question.solutions || [];
+                        const isMCQ = question.MCQ_options && question.MCQ_options.length > 0;
+
+                        return (
+                            <div key={question.question_id} className="border border-gray-300 rounded-lg p-4 bg-white">
+                                <div className="flex items-center mb-3 pb-2 border-b border-gray-200">
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedQuestionIds.includes(question.question_id)}
+                                        onChange={() => handleQuestionSelection(question.question_id)}
+                                        className="accent-lime-500 h-5 w-5 mr-3"
+                                    />
+                                    <span className="font-semibold text-gray-700">Points: {question.points}</span>
                                 </div>
-                            </label>
-                        </li>
-                    ))}
-                </ul>
-                <button onClick={saveSelectedQuestions}>Save Selection</button>
+
+                                <div className="space-y-3">
+                                    {[0, 1, 2, 3].map((versionIndex) =>
+                                        questionVersions[versionIndex] ? (
+                                            <div
+                                                key={versionIndex}
+                                                className="flex items-start gap-3 border rounded-md bg-gray-50 px-4 py-3 mb-3"
+                                            >
+                                                <span className="flex-shrink-0 w-7 h-7 bg-lime-200 rounded-full flex items-center justify-center font-semibold text-gray-800 mt-1">
+                                                    {versionIndex + 1}
+                                                </span>
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="text-base font-medium text-gray-800">
+                                                            {questionVersions[versionIndex]}
+                                                        </div>
+                                                        {isMCQ && (
+                                                            <span className="ml-2 px-2 py-0.5 bg-blue-50 text-blue-700 text-xs font-semibold rounded">
+                                                                Multiple Choice
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div className="mt-3">
+                                                        <span className="block text-xs font-semibold text-gray-600 mb-1">
+                                                            Solution
+                                                        </span>
+                                                        <div className="bg-gray-100 border border-gray-300 rounded px-3 py-2 text-base text-gray-800 font-semibold shadow-sm">
+                                                            {solutionVersions[versionIndex] || (
+                                                                <span className="text-gray-400">None</span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ) : null
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+                <div className="sticky bottom-0 left-0 right-0 bg-white pt-4">
+                    <button
+                        onClick={saveSelectedQuestions}
+                        className="w-full bg-lime-300 hover:bg-lime-400 text-gray-900 font-semibold py-2 rounded shadow"
+                    >
+                        Save Selection
+                    </button>
+                </div>
             </>
         );
     };
+
+
+
     const mediaStyles = `
         .media-preview {
           max-width: 300px;
@@ -444,149 +481,298 @@ const AssignmentEditorComponent: React.FC<ClientComponentProps> = ({ instructor_
     `;
 
     return (
-        <div>
-            <style jsx>{`${mediaStyles}`}</style>
-            <Link href={`/instructor-dashboard/${course_id}`}>Back</Link>
-            <div>
-                <h1>Assignment Name:</h1>
-                {assignmentDraft && <p>{assignmentDraft.assignment_name}</p>}
-            </div>
-            <input type="text" value={assignmentName} onChange={(e) => setAssignmentName(e.target.value)} />
-            <div>
-                <h2>Due Date:</h2>
-                {assignmentDraft && <p>{new Date(assignmentDraft.due_date).toString()}</p>}
-            </div>
-            <input
-                type="datetime-local"
-                onChange={(e) => setDueDate(new Date(e.target.value))}
-            />
-            <div>
-                <h2>Assigning Date:</h2>
-                {assignmentDraft?.assigned_date && <p>{new Date(assignmentDraft.assigned_date).toLocaleString()}</p>}
-                <input
-                    type="datetime-local"
-                    value={assigned_date ? assigned_date.toISOString().slice(0, 16) : ''}
-                    onChange={e => setAssignedDate(new Date(e.target.value))}
-                />
-            </div>
+        <>
 
-            {(dueDate && assigned_date) &&
-                <div>
-                    <h2>Opening Date:</h2>
-                    {assignmentDraft?.open_date && <p>{new Date(assignmentDraft.open_date).toLocaleString()}</p>}
+            {/* Navbar */}
+            <header className="px-8 pt-6 pb-4 border-b bg-lime-300">
+                <nav className="grid grid-cols-4">
+                    <Link href="/" className="col-start-2 col-end-4 text-center text-xl font-mono font-bold">Mastery Learning</Link>
+                    <Button onPress={logout} className="justify-self-end cursor-pointer text-sm hover:underline focus-visible:underline outline-none">
+                        Sign Out
+                    </Button>
+                </nav>
+            </header>
+
+            <main className="mx-auto mt-8 max-w-4xl px-4">
+                <Link
+                    href={`/instructor-dashboard/${course_id}`}
+                    className="block w-fit mb-8 text-gray-600 text-sm hover:underline focus-visible:underline outline-none"
+                >
+                    &lt; Back
+                </Link>
+
+                <section className="mb-8">
+                    <h1 className="font-mono font-bold text-2xl mb-2">Assignment Name:</h1>
+                    <p className="mb-2">{assignmentDraft?.assignment_name}</p>
+                    <input
+                        type="text"
+                        value={assignmentName}
+                        onChange={e => setAssignmentName(e.target.value)}
+                        className="border rounded px-2 py-1 mb-4 w-full max-w-md"
+                    />
+                    <div className="mb-2">
+                        <span className="font-semibold">Due Date:</span>{" "}
+                        <span>
+                            {assignmentDraft &&
+                                new Date(assignmentDraft.due_date).toLocaleString("en-US", {
+                                    month: "long",
+                                    day: "numeric",
+                                    year: "numeric",
+                                    hour: "numeric",
+                                    minute: "2-digit",
+                                    hour12: true,
+                                })}
+                        </span>
+                    </div>
                     <input
                         type="datetime-local"
-                        value={open_date ? open_date.toISOString().slice(0, 16) : ''}
-                        onChange={e => setOpenDate(new Date(e.target.value))}
-                        min={assigned_date instanceof Date ? assigned_date.toISOString().slice(0, 16) : ''}
+                        value={dueDate ? dueDate.toLocaleString().slice(0, 16) : ""}
+                        onChange={e => setDueDate(new Date(e.target.value))}
+                        className="border rounded px-2 py-1 mb-4 w-full max-w-md"
                     />
-                </div>
+                    <div className="mb-2">
+                        <span className="font-semibold">Assigning Date:</span>{" "}
+                        {assignmentDraft?.assigned_date &&
+                            new Date(assignmentDraft.assigned_date).toLocaleString()}
+                        <input
+                            type="datetime-local"
+                            value={assigned_date ? assigned_date.toISOString().slice(0, 16) : ""}
+                            onChange={e => setAssignedDate(new Date(e.target.value))}
+                            className="border rounded px-2 py-1 mb-4 w-full max-w-md"
+                        />
+                    </div>
+                    {dueDate && assigned_date && (
+                        <div className="mb-2">
+                            <span className="font-semibold">Opening Date:</span>{" "}
+                            {assignmentDraft?.open_date &&
+                                new Date(assignmentDraft.open_date).toLocaleString()}
+                            <input
+                                type="datetime-local"
+                                value={open_date ? open_date.toISOString().slice(0, 16) : ""}
+                                onChange={e => setOpenDate(new Date(e.target.value))}
+                                min={
+                                    assigned_date instanceof Date
+                                        ? assigned_date.toISOString().slice(0, 16)
+                                        : ""
+                                }
+                                className="border rounded px-2 py-1 mb-4 w-full max-w-md"
+                            />
+                        </div>
+                    )}
+                    {dueDate && assigned_date && open_date && (
+                        <div className="mb-2">
+                            <span className="font-semibold">Closing Date:</span>{" "}
+                            {assignmentDraft?.close_date &&
+                                new Date(assignmentDraft.close_date).toLocaleString()}
+                            <input
+                                type="datetime-local"
+                                value={close_date ? close_date.toISOString().slice(0, 16) : ""}
+                                onChange={e => setCloseDate(new Date(e.target.value))}
+                                min={
+                                    open_date instanceof Date
+                                        ? open_date.toISOString().slice(0, 16)
+                                        : ""
+                                }
+                                className="border rounded px-2 py-1 mb-4 w-full max-w-md"
+                            />
+                        </div>
+                    )}
+                </section>
 
-            }
-
-            {(dueDate && assigned_date && open_date) &&
-                <div>
-                    <h2>Closing Date:</h2>
-                    {assignmentDraft?.close_date && <p>{new Date(assignmentDraft.close_date).toLocaleString()}</p>}
-                    <input
-                        type="datetime-local"
-                        value={close_date ? close_date.toISOString().slice(0, 16) : ''}
-                        onChange={e => setCloseDate(new Date(e.target.value))}
-                        min={open_date instanceof Date ? open_date.toISOString().slice(0, 16) : ''}
-                    />
-                </div>
-            }
-
-
-            {blockPoints && <h3>Total Points: {totalPoints}</h3>}
-            {(!assignmentId
-                && assignmentName != ''
-                && !isDateBeforeToday(dueDate)) && (
-                    <button onClick={insertAssignmentDetails}>Create New Assignment</button>
+                {blockPoints && (
+                    <h3 className="text-lg font-semibold mb-4">
+                        Total Points: {totalPoints}
+                    </h3>
                 )}
-            {assignmentId && (
-                <div>
-                    {(assignmentName != ''
-                        && !isDateBeforeToday(dueDate)
-                        && (assignmentName != assignmentDraft?.assignment_name
-                            || dueDate != assignmentDraft?.due_date)) &&
-                        <button onClick={updateAssignmentDetails}>Save Assignment Details</button>
-                    }
-                    <button onClick={() => deleteDraft(assignmentId)}> Delete Draft </button>
-                    <p> --------------------------------------------------------------------------- </p>
-                    <ul>
+
+                {/* Assignment actions */}
+                <div className="mb-8 flex flex-wrap gap-4">
+                    {!assignmentId &&
+                        assignmentName !== "" &&
+                        !isDateBeforeToday(dueDate) && (
+                            <button
+                                onClick={insertAssignmentDetails}
+                                className="bg-lime-300 px-4 py-2 rounded font-semibold hover:bg-lime-400"
+                            >
+                                Create New Assignment
+                            </button>
+                        )}
+                    {assignmentId && (
+                        <>
+                            {assignmentName !== "" &&
+                                !isDateBeforeToday(dueDate) &&
+                                (assignmentName !== assignmentDraft?.assignment_name ||
+                                    dueDate !== assignmentDraft?.due_date) && (
+                                    <button
+                                        onClick={updateAssignmentDetails}
+                                        className="bg-lime-300 px-4 py-2 rounded font-semibold hover:bg-lime-400"
+                                    >
+                                        Save Assignment Details
+                                    </button>
+                                )}
+                            <button
+                                onClick={() => deleteDraft(assignmentId)}
+                                className="bg-red-200 px-4 py-2 rounded font-semibold hover:bg-red-300"
+                            >
+                                Delete Draft
+                            </button>
+                        </>
+                    )}
+                </div>
+
+                {/* Question Blocks */}
+                {assignmentId && (
+                    <ul className="space-y-8">
                         {Array.from({ length: blockCount }).map((_, index) => (
                             <li key={index}>
-                                <h1>Question Block {index + 1}</h1>
-                                <div>
-                                    <h3>Mastery Threshold:</h3>
-                                    <input
-                                        type="number"
-                                        value={isNaN(threshold[index]) ? '' : threshold[index]}
-                                        onChange={(e) => {
-                                            const numValue = Number(e.target.value);
-                                            saveBlockThreshold(numValue, index);
-                                        }}
-                                        min="0"
-                                        max={blockPoints[index] || 0}
-                                    />
-                                </div>
-                                <button onClick={() => { setIsModalOpen(true); setCurrentBlockIndex(index); }}>Select Questions</button>
-                                <Link href={`/question-creator/${course_id}/${assignmentId}`}>Create New Question</Link>
-                                <div>
-                                    {(blockPoints[index] != 0) && <h3>Points for this block: {blockPoints[index]}</h3>}
-                                    {selectedIds[index]?.map((id) => {
-                                        const q = questions.find((q) => q.question_id === id);
-                                        return (
-                                            <div key={id} className="chip">
-                                                {q?.question_body.join(', ')}
-                                                {q && <p>{q.points} Points</p>}
-                                                {q?.image_urls?.map((url, idx) => url && (
-                                                    <img
-                                                        key={idx}
-                                                        src={url}
-                                                        alt={`Question ${q.question_id} image ${idx + 1}`}
-                                                        style={{
-                                                            width: '80px',
-                                                            height: '80px',
-                                                            objectFit: 'cover',
-                                                            borderRadius: '4px'
-                                                        }}
-                                                        onError={(e) => {
-                                                            e.currentTarget.style.display = 'none';
-                                                        }}
-                                                    />
-                                                ))}
-                                                <button onClick={() =>
-                                                    setSelectedIds((prev) => prev.map((block, i) =>
-                                                        i === index ? block.filter((selectedId) => selectedId !== id) : block))}>
-                                                    ×
-                                                </button>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                                <button onClick={() => removeBlock(index)}>Remove Block</button>
-                                <p> ----------------------------- </p>
+                                <section className="bg-gray-100 rounded-xl p-6">
+                                    <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
+                                        <h2 className="font-bold text-base mb-2 md:mb-0">
+                                            Question Block {index + 1}
+                                        </h2>
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-semibold">Mastery Threshold:</span>
+                                            <input
+                                                type="number"
+                                                value={isNaN(threshold[index]) ? "" : threshold[index]}
+                                                onChange={e => {
+                                                    const numValue = Number(e.target.value);
+                                                    saveBlockThreshold(numValue, index);
+                                                }}
+                                                min="0"
+                                                max={blockPoints[index] || 0}
+                                                className="border rounded px-2 py-1 w-24"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="mb-4 flex flex-wrap gap-2">
+                                        <button
+                                            onClick={() => {
+                                                setIsModalOpen(true);
+                                                setCurrentBlockIndex(index);
+                                            }}
+                                            className="bg-lime-200 px-3 py-1 rounded hover:bg-lime-300"
+                                        >
+                                            Select Questions
+                                        </button>
+                                        <Link
+                                            href={`/question-creator/${course_id}/${assignmentId}`}
+                                            className="bg-lime-200 px-3 py-1 rounded hover:bg-lime-300"
+                                        >
+                                            Create New Question
+                                        </Link>
+                                        <button
+                                            onClick={() => removeBlock(index)}
+                                            className="bg-red-100 px-3 py-1 rounded hover:bg-red-200"
+                                        >
+                                            Remove Block
+                                        </button>
+                                    </div>
+                                    {blockPoints[index] !== 0 && (
+                                        <h3 className="mb-4 font-semibold">
+                                            Points for this block: {blockPoints[index]}
+                                        </h3>
+                                    )}
+
+                                    {/* Questions in this block */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {selectedIds[index]?.map(id => {
+                                            const q = questions.find(q => q.question_id === id);
+                                            if (!q) return null;
+                                            return (
+                                                <div
+                                                    key={id}
+                                                    className="border border-gray-300 rounded-lg bg-white p-4 shadow-sm flex flex-col"
+                                                >
+                                                    <div className="flex justify-between items-center mb-2">
+                                                        <h4 className="font-semibold text-base">
+                                                            {q.question_body[0]}
+                                                        </h4>
+                                                        <button
+                                                            onClick={() =>
+                                                                setSelectedIds(prev =>
+                                                                    prev.map((block, i) =>
+                                                                        i === index
+                                                                            ? block.filter(selectedId => selectedId !== id)
+                                                                            : block
+                                                                    )
+                                                                )
+                                                            }
+                                                            className="text-red-400 hover:text-red-600 font-bold text-lg"
+                                                            title="Remove question"
+                                                        >
+                                                            ×
+                                                        </button>
+                                                    </div>
+                                                    <div className="mb-2 text-sm text-gray-700">
+                                                        <span className="font-semibold">Points:</span> {q.points}
+                                                    </div>
+                                                    {q.image_urls && (
+                                                        <div className="flex flex-wrap gap-2 mb-2">
+                                                            {q.image_urls.map(
+                                                                (url, idx) =>
+                                                                    url && (
+                                                                        <img
+                                                                            key={idx}
+                                                                            src={url}
+                                                                            alt={`Question ${q.question_id} image ${idx + 1}`}
+                                                                            className="w-24 h-24 object-cover rounded"
+                                                                            onError={e => {
+                                                                                (e.currentTarget as HTMLImageElement).style.display =
+                                                                                    "none";
+                                                                            }}
+                                                                        />
+                                                                    )
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                    {q.solutions?.length > 0 && (
+                                                        <div className="mb-2 text-sm">
+                                                            <span className="font-semibold">Solution:</span>{" "}
+                                                            {q.solutions.join(", ")}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </section>
                             </li>
                         ))}
                     </ul>
-                    <button onClick={addBlock}>Add Block</button>
-                    <br />
-                    <button onClick={saveBlocks} disabled={isSaveDisabled()}>Save Assignment</button>
-                    {isSaveDisabled() && (
-                        <p style={{ color: 'red' }}>
-                            Please ensure all blocks have selected questions and thresholds before saving.
-                        </p>
-                    )}
-                </div>
-            )}
+                )}
 
-            <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
-                {renderModalContent()}
-            </Modal>
-        </div>
+                <div className="mt-8 flex flex-wrap gap-4">
+                    <button
+                        onClick={addBlock}
+                        className="bg-lime-200 px-4 py-2 rounded font-semibold hover:bg-lime-300"
+                    >
+                        Add Block
+                    </button>
+                    <button
+                        onClick={saveBlocks}
+                        disabled={isSaveDisabled()}
+                        className={`px-4 py-2 rounded font-semibold ${isSaveDisabled()
+                            ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                            : "bg-lime-300 hover:bg-lime-400"
+                            }`}
+                    >
+                        Save Assignment
+                    </button>
+                </div>
+                {isSaveDisabled() && (
+                    <p className="mt-2 text-red-500">
+                        Please ensure all blocks have selected questions and thresholds before saving.
+                    </p>
+                )}
+
+                <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Select Questions">
+                    {renderModalContent()}
+                </Modal>
+            </main>
+        </>
     );
+
 };
 
 export default AssignmentEditorComponent;
