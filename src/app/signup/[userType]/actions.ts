@@ -16,7 +16,6 @@ export async function createStudent(formData: FormData) {
 
     if (signupError) {
         console.error("Error creating user: ", signupError.message)
-        return null;
     }
     else {
         const studentData = {
@@ -30,11 +29,10 @@ export async function createStudent(formData: FormData) {
 
         if (insertionError) {
             console.error("Error inserting student data: ", insertionError.message)
-            return null;
         }
-        else {
-            redirect('/');
-        }
+
+        redirect("/");
+
     }
 }
 
@@ -48,11 +46,10 @@ export async function createInstructor(formData: FormData) {
     }
 
     const { data: signupReturn, error: signupError } = await supabase.auth.signUp(loginData);
-    console.log()
 
     if (signupError) {
         console.error("Error creating user: ", signupError.message)
-        return null;
+        console.error("Error inserting student data: ", signupError.message);
     }
     else {
         const instructorData = {
@@ -66,12 +63,7 @@ export async function createInstructor(formData: FormData) {
 
         if (insertionError) {
             console.error("Error inserting instructor data: ", insertionError.message)
-            return null;
         }
-        else {
-            redirect('/');
-        }
+        redirect('/');
     }
 }
-
-

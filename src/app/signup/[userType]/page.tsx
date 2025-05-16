@@ -8,7 +8,7 @@ interface PageProps {
   params: Promise<SignUpParams>
 }
 
-export default async function LoginPage({ params }: PageProps) {
+export default async function SignupPage({ params }: PageProps) {
 
     const userType = await params;
     let action;
@@ -27,7 +27,7 @@ export default async function LoginPage({ params }: PageProps) {
 		<main className="flex h-screen bg-lime-50">
 			<div className="m-auto px-16 py-20 rounded-xl border bg-white">
 				<h1 className="text-3xl font-mono font-bold">Mastery Learning</h1>
-				<Form className="mt-12">
+				<Form action={action} className="mt-12">
 					<TextField type="email" name="email">
 						<Label className="text-sm">Email</Label>
 						<Input className="w-full border pl-3 py-1 mt-1 rounded-lg outline-lime-300 focus:outline-2 bg-gray-200" />
@@ -58,7 +58,7 @@ export default async function LoginPage({ params }: PageProps) {
 						<Text slot="description">
 						</Text>
 					</TextField>
-					<Button formAction={action} type="submit" className="w-full border rounded-lg p-2 mt-8 cursor-pointer bg-lime-50 transition ease-in-out hover:scale-105 active:bg-gray-300 outline-lime-300 focus-visible:outline-2">
+					<Button type="submit" className="w-full border rounded-lg p-2 mt-8 cursor-pointer bg-lime-50 transition ease-in-out hover:scale-105 active:bg-gray-300 outline-lime-300 focus-visible:outline-2">
 						Signup
 					</Button>
 					<Link

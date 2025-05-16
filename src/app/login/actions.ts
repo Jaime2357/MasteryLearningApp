@@ -14,7 +14,7 @@ export async function login(formData: FormData) {
     password: formData.get('password') as string,
   }
 
-  const { data: userData, error } = await supabase.auth.signInWithPassword(data)
+  const { data: userData, error: loginError } = await supabase.auth.signInWithPassword(data)
 
   console.log(userData)
 
@@ -22,7 +22,7 @@ export async function login(formData: FormData) {
     console.log('Please double check your email/password. Please also check that you have verified your email');
   }
 
-   if (error) {
+   if (loginError) {
     // Redirect with error message as a search param
     redirect(`/login?error=${encodeURIComponent("Invalid email or password")}`);
   }
