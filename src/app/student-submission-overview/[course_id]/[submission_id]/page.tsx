@@ -1,4 +1,7 @@
+import { logout } from '@/app/actions';
+import { Button } from '@/components/react-aria';
 import { createClient } from '@/utils/supabase/server';
+import { ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
@@ -207,62 +210,80 @@ export default async function SubmissionReviewPage({ params }: { params: Assignm
     const daysLeft: number = Math.floor(milliDif / (1000 * 60 * 60 * 24))
 
     return (
-        <div>
-            <div>
-                <Link href={`/assignment-grade-list/${course_id}/${submissionData.assignment_id}`}> Back </Link>
-            </div>
-            <h1>{assignmentData.assignment_name}</h1>
-            <h2> Student: {student.first_name} {student.last_name}</h2>
-            <h3> Grade: {totalScore}% </h3>
-            <p>Due Date: {assignmentData.due_date}</p>
+        <>
+            {/* Navbar */}
+            <header className="px-8 pt-6 pb-4 border-b bg-lime-300">
+                <nav className="grid grid-cols-4">
+                    <Link href="/" className="col-start-2 col-end-4 text-center text-xl font-mono font-bold">Mastery Learning</Link>
+                    <Button onPress={logout} className="justify-self-end cursor-pointer text-sm hover:underline focus-visible:underline outline-none">
+                        Sign Out
+                    </Button>
+                </nav>
+            </header>
 
-            {
-                (daysLeft < 1) && <p> Less than 1 day left to submit</p>
-            }
+            {/* Back to Dashboard */}
+            <Link href={`/student-dashboard/${course_id}`} className="block w-fit mt-6 ml-6 outline-none text-gray-600 group">
+                <ChevronLeft className="inline" strokeWidth={1} />
+                <span className="align-middle group-hover:underline group-focus-visible:underline">Return to Submissions</span>
+            </Link>
 
-            {
-                (daysLeft > 0) && <p> {daysLeft} days left to submit</p>
-            }
+            <main className="mx-12 mt-6">
 
-            {structuredData.blocks.map((block) => (
-                <div key={block.blockNumber}>
-                    <h3>Question Block {block.blockNumber}:</h3>
-                    {block.versions.map((version) => (
-                        <div key={version.version}>
-                            <h4>Version {version.version}:</h4>
-                            {version.questions.map((question, index) => (
-                                <div key={index}>
-                                    {question.image && (
-                                        <div style={{
-                                            margin: '10px 0',
-                                            maxWidth: '300px',
-                                            border: '1px solid #ddd',
-                                            borderRadius: '4px',
-                                            padding: '4px'
-                                        }}>
-                                            <img
-                                                src={question.image}
-                                                alt={`Question ${index + 1} visual aid`}
-                                                style={{
-                                                    width: '100%',
-                                                    height: 'auto',
-                                                    borderRadius: '4px'
-                                                }}
-                                            />
+                <p className="text-3xl font-bold">{assignmentData.assignment_name}</p>
+                <p className="text-lg font-semibold">Student: <span className="font-normal">{student.first_name} {student.last_name}</span></p>
+                <p className="mt-2 text-lg font-semibold">Grade: <span className="font-normal">{totalScore}%</span></p>
+                <p className="mt-2 text-lg font-semibold">Due Date: <span className="font-normal">
+                    {new Date(assignmentData.due_date).toLocaleString('en-US', {
+                        month: 'long',   // "May"
+                        day: 'numeric',  // "5"
+                        year: 'numeric', // "2025"
+                        hour: 'numeric', // "11"
+                        minute: '2-digit', // "59"
+                        hour12: true     // "PM"
+                    })} ({(daysLeft < 1) && "Less than 1 day left to submit."}
+                    {(daysLeft > 0) && `${daysLeft} days left to submit`})
+                </span>
+                </p>
+
+                {structuredData.blocks.map((block) => (
+                    <div key={block.blockNumber} className="mt-4 p-4 min-w-xs w-fit bg-gray-200 rounded-xl font-mono relative">
+                        <p className="mt-4 mb-2 font-semibold text-lg flex justify-between items-center">
+                            <span>Question Set {block.blockNumber}:</span>
+                            <span className="text-right font-bold">
+                                {block.versions.flatMap(v => v.questions).reduce((sum, q) => sum + (q.grade ?? 0), 0)}/
+                                {block.versions.flatMap(v => v.questions).reduce((sum, q) => sum + (q.pointsPossible ?? 0), 0)}
+                            </span>
+                        </p>
+
+                        {/* Group by question index */}
+                        {block.versions[0]?.questions.map((_, questionIdx) => (
+                            <div key={questionIdx} className="flex flex-row gap-4 mb-4">
+                                {block.versions.map((version) => {
+                                    const question = version.questions[questionIdx];
+                                    return (
+                                        <div key={version.version} className="bg-white rounded shadow p-3 min-w-[220px] flex flex-col justify-between">
+                                            <div>
+                                                <p className="font-semibold mb-1">Version {version.version}</p>
+                                                <p className="indent-4">Question {questionIdx + 1}: {question.submittedAnswer}</p>
+                                                <p className="indent-8">Submitted Answer: {question.submittedAnswer}</p>
+                                                <p className="indent-8 text-red-500">Correct Answer: <span> {question.correctAnswer}
+                                                    {question.FRQ_err_marg !== 0 && (
+                                                        <span>&nbsp;± {question.FRQ_err_marg}</span>
+                                                    )}
+                                                </span> </p>
+                                            </div>
+                                            <div className="text-right mt-2 font-semibold">
+                                                {question.grade ?? "0"}/{question.pointsPossible}
+                                            </div>
                                         </div>
-                                    )}
-                                    <p>Question {index + 1}: {question.questionText}</p>
-                                    <p>Submitted Answer: {question.submittedAnswer}</p>
-                                    <p>Margin of Error Allowed: {question.FRQ_err_marg}</p>
-                                    <p>Correct Answer: {question.correctAnswer}</p>
-                                    <p>Grade: {question.grade ?? "0"}/{question.pointsPossible}</p>
-                                </div>
-                            ))}
-                        </div>
-                    ))}
-                </div>
-            ))}
-        </div>
+                                    );
+                                })}
+                            </div>
+                        ))}
+                    </div>
+                ))}
+            </main>
+        </>
     );
 }
 
