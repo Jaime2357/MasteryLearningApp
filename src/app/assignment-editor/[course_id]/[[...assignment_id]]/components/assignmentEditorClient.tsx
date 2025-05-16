@@ -462,23 +462,17 @@ const AssignmentEditorComponent: React.FC<ClientComponentProps> = ({ instructor_
         );
     };
 
-
-
-    const mediaStyles = `
-        .media-preview {
-          max-width: 300px;
-          max-height: 200px;
-          margin: 10px 0;
-          border-radius: 4px;
-        }
-        .media-thumbnail {
-          max-width: 100px;
-          max-height: 75px;
-          margin: 5px;
-          object-fit: cover;
-          border-radius: 4px;
-        }
-    `;
+    function toLocalDatetimeString(date: Date) {
+        if (!date) return '';
+        const d = new Date(date);
+        const pad = (n: number) => n.toString().padStart(2, '0');
+        const year = d.getFullYear();
+        const month = pad(d.getMonth() + 1);
+        const day = pad(d.getDate());
+        const hours = pad(d.getHours());
+        const minutes = pad(d.getMinutes());
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+    }
 
     return (
         <>
@@ -510,70 +504,56 @@ const AssignmentEditorComponent: React.FC<ClientComponentProps> = ({ instructor_
                         onChange={e => setAssignmentName(e.target.value)}
                         className="border rounded px-2 py-1 mb-4 w-full max-w-md"
                     />
-                    <div className="mb-2">
-                        <span className="font-semibold">Due Date:</span>{" "}
-                        <span>
-                            {assignmentDraft &&
-                                new Date(assignmentDraft.due_date).toLocaleString("en-US", {
-                                    month: "long",
-                                    day: "numeric",
-                                    year: "numeric",
-                                    hour: "numeric",
-                                    minute: "2-digit",
-                                    hour12: true,
-                                })}
-                        </span>
-                    </div>
-                    <input
-                        type="datetime-local"
-                        value={dueDate ? dueDate.toLocaleString().slice(0, 16) : ""}
-                        onChange={e => setDueDate(new Date(e.target.value))}
-                        className="border rounded px-2 py-1 mb-4 w-full max-w-md"
-                    />
-                    <div className="mb-2">
-                        <span className="font-semibold">Assigning Date:</span>{" "}
-                        {assignmentDraft?.assigned_date &&
-                            new Date(assignmentDraft.assigned_date).toLocaleString()}
+
+                    {/* Due Date */}
+                    <div className="mb-4">
+                        <span className="font-semibold block mb-1">Due Date:</span>
                         <input
                             type="datetime-local"
-                            value={assigned_date ? assigned_date.toISOString().slice(0, 16) : ""}
-                            onChange={e => setAssignedDate(new Date(e.target.value))}
-                            className="border rounded px-2 py-1 mb-4 w-full max-w-md"
+                            value={dueDate ? toLocalDatetimeString(dueDate) : ""}
+                            onChange={e => setDueDate(new Date(e.target.value))}
+                            className="border rounded px-2 py-1 w-full max-w-md"
                         />
                     </div>
+
+                    {/* Assigning Date */}
+                    <div className="mb-4">
+                        <span className="font-semibold block mb-1">Assigning Date:</span>
+                        <input
+                            type="datetime-local"
+                            value={assigned_date ? toLocalDatetimeString(assigned_date) : ""}
+                            onChange={e => setAssignedDate(new Date(e.target.value))}
+                            className="border rounded px-2 py-1 w-full max-w-md"
+                            max={dueDate ? toLocalDatetimeString(dueDate) : ""}
+                        />
+                    </div>
+
+                    {/* Conditionally rendered Opening Date */}
                     {dueDate && assigned_date && (
-                        <div className="mb-2">
-                            <span className="font-semibold">Opening Date:</span>{" "}
-                            {assignmentDraft?.open_date &&
-                                new Date(assignmentDraft.open_date).toLocaleString()}
+                        <div className="mb-4">
+                            <span className="font-semibold block mb-1">Opening Date:</span>
                             <input
                                 type="datetime-local"
-                                value={open_date ? open_date.toISOString().slice(0, 16) : ""}
+                                value={open_date ? toLocalDatetimeString(open_date) : ""}
                                 onChange={e => setOpenDate(new Date(e.target.value))}
-                                min={
-                                    assigned_date instanceof Date
-                                        ? assigned_date.toISOString().slice(0, 16)
-                                        : ""
-                                }
-                                className="border rounded px-2 py-1 mb-4 w-full max-w-md"
+                                className="border rounded px-2 py-1 w-full max-w-md"
+                                min={assigned_date ? toLocalDatetimeString(assigned_date) : ""}
+                                max={dueDate ? toLocalDatetimeString(dueDate) : ""}
                             />
                         </div>
                     )}
+
+                    {/* Conditionally rendered Closing Date */}
                     {dueDate && assigned_date && open_date && (
-                        <div className="mb-2">
-                            <span className="font-semibold">Closing Date:</span>{" "}
-                            {assignmentDraft?.close_date &&
-                                new Date(assignmentDraft.close_date).toLocaleString()}
+                        <div className="mb-4">
+                            <span className="font-semibold block mb-1">Closing Date:</span>
                             <input
                                 type="datetime-local"
-                                value={close_date ? close_date.toISOString().slice(0, 16) : ""}
+                                value={close_date ? toLocalDatetimeString(close_date) : ""}
                                 onChange={e => setCloseDate(new Date(e.target.value))}
-                                min={
-                                    open_date instanceof Date
-                                        ? open_date.toISOString().slice(0, 16)
-                                        : ""
-                                }
-                                className="border rounded px-2 py-1 mb-4 w-full max-w-md"
+                                className="border rounded px-2 py-1 w-full max-w-md"
+                                min={open_date ? toLocalDatetimeString(open_date) : ""}
+                                max={dueDate ? toLocalDatetimeString(dueDate) : ""}
                             />
                         </div>
                     )}
