@@ -1,6 +1,10 @@
 'use client';
 
+import { logout } from "@/app/actions";
+import { Button } from "@/components/react-aria";
 import { createClient } from "@/utils/supabase/client";
+import { ChevronLeft } from "lucide-react";
+import Link from "next/link";
 import { useState, useEffect } from "react";
 
 interface ClientComponentProps {
@@ -126,11 +130,11 @@ const MyQuestionsComponent: React.FC<ClientComponentProps> = ({ instructor_id })
                     [0, 1, 2, 3].map(async (version) => {
                         const path = q.question_image?.[version];
                         if (!path) return null;
-                        
+
                         const { data } = await supabase.storage
                             .from(BUCKET_NAME)
                             .createSignedUrl(path, SIGNED_URL_EXPIRY);
-                            
+
                         return data?.signedUrl || null;
                     })
                 );
@@ -140,11 +144,11 @@ const MyQuestionsComponent: React.FC<ClientComponentProps> = ({ instructor_id })
                     [0, 1, 2, 3].map(async (version) => {
                         const path = q.feedback_images?.[version];
                         if (!path) return null;
-                        
+
                         const { data } = await supabase.storage
                             .from(BUCKET_NAME)
                             .createSignedUrl(path, SIGNED_URL_EXPIRY);
-                            
+
                         return data?.signedUrl || null;
                     })
                 );
@@ -179,52 +183,84 @@ const MyQuestionsComponent: React.FC<ClientComponentProps> = ({ instructor_id })
             alert('Question Deleted Successfully')
         }
     }
-    
+
     return (
-        <div>
-            {questions.map((question) => (
-                <li key={question.question_id} style={{ marginBottom: 32 }}>
-                    <h2>Points: {question.points}</h2>
-                    <button onClick={() => deleteQuestion(question.question_id)}>Delete</button>
+        <>
+            {/* Navbar */}
+            <header className="px-8 pt-6 pb-4 border-b bg-lime-300">
+                <nav className="grid grid-cols-4">
+                    <Link href="/" className="col-start-2 col-end-4 text-center text-xl font-mono font-bold">Mastery Learning</Link>
+                    <Button onPress={logout} className="justify-self-end cursor-pointer text-sm hover:underline focus-visible:underline outline-none">
+                        Sign Out
+                    </Button>
+                </nav>
+            </header>
 
-                    {[0, 1, 2, 3].map((version) => (
-                        <div key={version}>
-                            <h3>Version {version + 1}</h3>
-                            
-                            {/* Question Content */}
-                            <div>
-                                <h4>Question:</h4>
-                                <p>{question.question_body[version]}</p>
-                                {question.question_image_signed[version] && (
-                                    <img
-                                        src={question.question_image_signed[version]!}
-                                        alt={`Question visual aid`}
-                                        style={{ width: 120, height: 120, objectFit: 'cover' }}
-                                    />
-                                )}
+            {/* Back to Dashboard */}
+            <Link href={`/course-selection`} className="block w-fit mt-6 ml-6 outline-none text-gray-600 group">
+                <ChevronLeft className="inline" strokeWidth={1} />
+                <span className="align-middle group-hover:underline group-focus-visible:underline">Return to Course Selection</span>
+            </Link>
+            
+            <main className="max-w-3xl mx-auto px-4 py-8">
+                <h1 className="text-2xl font-mono font-bold mb-8 text-lime-700">My Questions</h1>
+                <ul className="space-y-8">
+                    {questions.map((question) => (
+                        <li key={question.question_id} className="bg-white border border-gray-200 rounded-xl shadow p-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="font-mono font-semibold text-lg text-gray-800">
+                                    Points: <span className="text-lime-700">{question.points}</span>
+                                </h2>
+                                <button
+                                    onClick={() => deleteQuestion(question.question_id)}
+                                    className="bg-red-100 hover:bg-red-200 text-red-700 font-semibold rounded px-3 py-1 text-sm shadow transition"
+                                >
+                                    Delete
+                                </button>
                             </div>
-
-                            {/* Answer */}
-                            <div>
-                                <h4>Answer:</h4>
-                                <p>{question.solutions[version]}</p>
+                            <div className="space-y-6">
+                                {[0, 1, 2, 3].map((version) => (
+                                    <div
+                                        key={version}
+                                        className="bg-gray-100 border border-gray-300 rounded-lg px-4 py-4"
+                                    >
+                                        <h3 className="font-mono font-bold text-base text-lime-700 mb-2">
+                                            Version {version + 1}
+                                        </h3>
+                                        {/* Question Content */}
+                                        <div className="mb-3">
+                                            <span className="block font-semibold text-gray-700 mb-1">Question:</span>
+                                            <p className="mb-2">{question.question_body[version]}</p>
+                                            {question.question_image_signed[version] && (
+                                                <img
+                                                    src={question.question_image_signed[version]!}
+                                                    alt="Question visual aid"
+                                                    className="w-32 h-32 object-cover rounded border"
+                                                />
+                                            )}
+                                        </div>
+                                        {/* Answer */}
+                                        <div className="mb-3">
+                                            <span className="block font-semibold text-gray-700 mb-1">Answer:</span>
+                                            <p>{question.solutions[version]}</p>
+                                        </div>
+                                        {/* Feedback Section */}
+                                        <div>
+                                            <span className="block font-semibold text-gray-700 mb-1">Feedback:</span>
+                                            <p className="mb-2">{question.feedback[version]}</p>
+                                            <FeedbackMedia
+                                                imageUrl={question.feedback_image_signed[version]}
+                                                videoUrl={question.feedback_video_signed[version]}
+                                            />
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
-
-                            {/* Feedback Section */}
-                            <div>
-                                <h4>Feedback:</h4>
-                                <p>{question.feedback[version]}</p>
-                                <FeedbackMedia 
-                                    imageUrl={question.feedback_image_signed[version]}
-                                    videoUrl={question.feedback_video_signed[version]}
-                                />
-                            </div>
-                            <hr style={{ margin: '20px 0' }} />
-                        </div>
+                        </li>
                     ))}
-                </li>
-            ))}
-        </div>
+                </ul>
+            </main>
+        </>
     );
 };
 
