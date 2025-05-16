@@ -1,14 +1,12 @@
 import { createClient } from '@/utils/supabase/server';
-import { Button } from "@/components/react-aria";
-import { logout } from '@/app/actions';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
 
 type AssignmentParams = { course_id: string, assignment_id: number };
 
-interface FeedbackMediaProps {
-    video?: string;
+interface PageProps {
+  params: Promise<AssignmentParams>
 }
 
 interface SubmittedQuestion {
@@ -89,9 +87,9 @@ const FeedbackMedia: React.FC<{ video?: string }> = ({ video }) => {
     );
 };
 
-export default async function AssignmentPreviewPage({ params }: { params: AssignmentParams }) {
+export default async function AssignmentPreviewPage({ params }: PageProps) {
     const supabase = await createClient();
-    const { course_id, assignment_id } = params;
+    const { course_id, assignment_id } = await params;
 
     const { data: userData, error: authError } = await supabase.auth.getUser();
     if (authError || !userData?.user) {

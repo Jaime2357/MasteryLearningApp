@@ -55,7 +55,7 @@ const AssignmentEditorComponent: React.FC<ClientComponentProps> = ({ instructor_
     const [selectedQuestionIds, setSelectedQuestionIds] = useState<number[]>([]);
     const [currentBlockIndex, setCurrentBlockIndex] = useState<number>(0);
     const [assignmentDraft, setAssignmentDraft] = useState<AssignmentDraft>();
-    const [searchQuery, setSearchQuery] = useState<string>('');
+    const [searchQuery] = useState<string>('');
 
 
     useEffect(() => {

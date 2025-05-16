@@ -1,4 +1,3 @@
-import React, { useEffect, useRef } from 'react';
 
 interface ModalProps {
   isOpen: boolean;

@@ -5,7 +5,11 @@ import { redirect } from "next/navigation";
 
 type CourseParams = { course_id: string }
 
-export default async function CourseCreator({ params }: { params: CourseParams }) {
+interface PageProps {
+  params: Promise<CourseParams>
+}
+
+export default async function CourseCreator({ params }: PageProps) {
 
     const supabase = await createClient();
 

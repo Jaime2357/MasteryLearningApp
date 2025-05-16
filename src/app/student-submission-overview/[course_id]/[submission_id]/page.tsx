@@ -7,6 +7,10 @@ import { redirect } from 'next/navigation';
 
 type AssignmentParams = { course_id: string, submission_id: number };
 
+interface PageProps {
+  params: Promise<AssignmentParams>
+}
+
 interface SubmittedQuestion {
     questionText: string;
     submittedAnswer: string | null;
@@ -31,7 +35,7 @@ interface StructuredData {
     blocks: Block[];
 }
 
-export default async function SubmissionReviewPage({ params }: { params: AssignmentParams }) {
+export default async function SubmissionReviewPage({ params }: PageProps) {
 
     // Create Supabase connection
     const supabase = await createClient();

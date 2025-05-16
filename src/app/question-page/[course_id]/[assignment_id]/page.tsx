@@ -1,13 +1,14 @@
 import { createClient } from '@/utils/supabase/server';
 import { redirect } from 'next/navigation';
 import AssignmentComponent from './components/assignmentClient';
-import Link from "next/link";
-import { Button } from "@/components/react-aria";
-import { logout } from "@/app/actions";
 
 type AssignmentParams = { course_id: string, assignment_id: string };
 
-export default async function QuestionPage({ params }: { params: AssignmentParams }) {
+interface PageProps {
+  params: Promise<AssignmentParams>
+}
+
+export default async function QuestionPage({ params }: PageProps) {
 	const supabase = await createClient();
 
 	// Authenticate user

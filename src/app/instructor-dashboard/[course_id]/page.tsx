@@ -4,7 +4,11 @@ import InstructorDashboardComponent from './components/instructorDashboardClient
 
 type CourseParams = { course_id: string };
 
-export default async function InstructorDashboard({ params }: { params: CourseParams }) {
+interface PageProps {
+  params: Promise<CourseParams>
+}
+
+export default async function InstructorDashboard({ params }: PageProps) {
     
     const supabase = await createClient(); // Create Supabase Client
     const { course_id } = await params; // Extract Course ID

@@ -4,7 +4,11 @@ import AssignmentEditorComponent from './components/assignmentEditorClient';
 
 type AssignmentParams = { course_id: string, assignment_id: string | null };
 
-export default async function AssignmentCreator({ params }: { params: AssignmentParams }) {
+interface PageProps {
+  params: Promise<AssignmentParams>
+}
+
+export default async function AssignmentEditor({ params }: PageProps ) {
     const supabase = await createClient();
 
     // Authenticate user

@@ -48,8 +48,8 @@ const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({ instructor_i
     const [questionImages, setQuestionImages] = useState<string[]>(['', '', '', '']);
     const [uploading, setUploading] = useState<boolean[]>([false, false, false, false]);
     const [previewUrls, setPreviewUrls] = useState<string[]>(['', '', '', '']);
-    const [feedbackImages, setFeedbackImages] = useState<string[]>(['', '', '', '']);
-    const [feedbackImagePreviews, setFeedbackImagePreviews] = useState<string[]>(['', '', '', '']);
+    const [feedbackImages] = useState<string[]>(['', '', '', '']);
+    const [feedbackImagePreviews] = useState<string[]>(['', '', '', '']);
     const [feedbackVideos, setFeedbackVideos] = useState<string[]>(['', '', '', '']);
 
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>, versionIndex: number) => {
@@ -171,16 +171,16 @@ const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({ instructor_i
         });
     };
 
-    const addMcqOption = (versionIndex: number) => {
-        setMcqOptions(prev => {
-            const newOptions = [...prev];
-            const firstEmptyIndex = newOptions[versionIndex].findIndex(opt => opt.trim() === '');
-            if (firstEmptyIndex !== -1) {
-                newOptions[versionIndex][firstEmptyIndex] = ' ';
-            }
-            return newOptions;
-        });
-    };
+    // const addMcqOption = (versionIndex: number) => {
+    //     setMcqOptions(prev => {
+    //         const newOptions = [...prev];
+    //         const firstEmptyIndex = newOptions[versionIndex].findIndex(opt => opt.trim() === '');
+    //         if (firstEmptyIndex !== -1) {
+    //             newOptions[versionIndex][firstEmptyIndex] = ' ';
+    //         }
+    //         return newOptions;
+    //     });
+    // };
 
     const removeMcqOption = (versionIndex: number, optionIndex: number) => {
         setMcqOptions(prev => {
@@ -260,43 +260,43 @@ const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({ instructor_i
         });
     };
 
-    const handleFeedbackImageChange = async (
-        event: React.ChangeEvent<HTMLInputElement>,
-        versionIndex: number
-    ) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
+    // const handleFeedbackImageChange = async (
+    //     event: React.ChangeEvent<HTMLInputElement>,
+    //     versionIndex: number
+    // ) => {
+    //     const file = event.target.files?.[0];
+    //     if (!file) return;
 
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Date.now()}_feedback_v${versionIndex + 1}_${Math.random().toString(36).substring(2, 15)}`;
-        const filePath = `feedback_images/private/${fileName}.${fileExt}`;
+    //     const fileExt = file.name.split('.').pop();
+    //     const fileName = `${Date.now()}_feedback_v${versionIndex + 1}_${Math.random().toString(36).substring(2, 15)}`;
+    //     const filePath = `feedback_images/private/${fileName}.${fileExt}`;
 
-        try {
-            const { error } = await supabase.storage
-                .from("question-images")
-                .upload(filePath, file);
+    //     try {
+    //         const { error } = await supabase.storage
+    //             .from("question-images")
+    //             .upload(filePath, file);
 
-            if (error) throw error;
+    //         if (error) throw error;
 
-            const { data: urlData } = supabase.storage
-                .from("question-images")
-                .getPublicUrl(filePath);
+    //         const { data: urlData } = supabase.storage
+    //             .from("question-images")
+    //             .getPublicUrl(filePath);
 
-            setFeedbackImages(prev => {
-                const newArr = [...prev];
-                newArr[versionIndex] = filePath;
-                return newArr;
-            });
+    //         setFeedbackImages(prev => {
+    //             const newArr = [...prev];
+    //             newArr[versionIndex] = filePath;
+    //             return newArr;
+    //         });
 
-            setFeedbackImagePreviews(prev => {
-                const newArr = [...prev];
-                newArr[versionIndex] = urlData.publicUrl;
-                return newArr;
-            });
-        } catch (error) {
-            console.error("Feedback image upload failed:", error);
-        }
-    };
+    //         setFeedbackImagePreviews(prev => {
+    //             const newArr = [...prev];
+    //             newArr[versionIndex] = urlData.publicUrl;
+    //             return newArr;
+    //         });
+    //     } catch (error) {
+    //         console.error("Feedback image upload failed:", error);
+    //     }
+    // };
 
     const handleVideoUrlChange = (url: string, versionIndex: number) => {
         setFeedbackVideos(prev => {
@@ -305,182 +305,6 @@ const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({ instructor_i
             return newArr;
         });
     };
-
-    // --- UI for each version ---
-    const renderVersionBlock = (versionIndex: number) => {
-        const currentOptions = mcqOptions[versionIndex];
-        const validOptions = currentOptions.filter(opt => opt.trim() !== '');
-        const showAddButton = validOptions.length < 4 && currentOptions[validOptions.length] === '';
-
-        return (
-            <div key={versionIndex} className="version-block" style={{ marginBottom: "2rem", padding: "1rem", border: "1px solid #ddd", borderRadius: "8px" }}>
-                <h1>Version {versionIndex + 1}</h1>
-
-                <h2>Question:</h2>
-                <input
-                    type="text"
-                    value={questionBodies[versionIndex]}
-                    onChange={(e) => saveQuestionBody(e.target.value, versionIndex)}
-                    style={{ width: "100%", padding: "8px", marginBottom: "10px" }}
-                />
-
-
-                <div className="image-upload-section" style={{ marginBottom: "15px" }}>
-                    <h3>Question Image (Optional):</h3>
-                    <input
-                        type="file"
-                        accept="image/*"
-                        disabled={uploading[versionIndex]}
-                        onChange={(e) => handleFileChange(e, versionIndex)}
-                    />
-
-                    {uploading[versionIndex] && (<p>Uploading image...</p>)}
-
-                    {previewUrls[versionIndex] && (
-                        <div className="image-preview" style={{ marginTop: "10px" }}>
-                            <img
-                                src={previewUrls[versionIndex]}
-                                alt={`Question ${versionIndex + 1} image`}
-                                style={{ maxWidth: "200px", maxHeight: "200px" }}
-                            />
-                            <button
-                                onClick={() => removeImage(versionIndex)}
-                                style={{ marginLeft: "10px" }}
-                            >
-                                Remove Image
-                            </button>
-                        </div>
-                    )}
-                </div>
-
-                {questionType === 'MCQ' && (
-                    <div className="mcq-options-section" style={{ marginBottom: "15px" }}>
-                        <h2>Multiple Choice Options:</h2>
-                        {currentOptions.map((option, optionIndex) => {
-                            if (optionIndex > 0 && currentOptions[optionIndex - 1].trim() === '') return null;
-
-                            return (
-                                <div key={optionIndex} style={{ marginBottom: '10px', position: 'relative' }}>
-                                    <label>Option {optionIndex + 1}:</label>
-                                    <input
-                                        type="text"
-                                        value={option}
-                                        onChange={(e) => handleMcqOptionChange(e.target.value, versionIndex, optionIndex)}
-                                        style={{ width: "100%", padding: "8px" }}
-                                        required={optionIndex < 2}
-                                    />
-                                    {optionIndex > 1 && (
-                                        <button
-                                            type="button"
-                                            onClick={() => removeMcqOption(versionIndex, optionIndex)}
-                                            style={{
-                                                position: 'absolute',
-                                                right: -40,
-                                                top: 27,
-                                                background: 'none',
-                                                border: 'none',
-                                                color: '#ff4444',
-                                                cursor: 'pointer'
-                                            }}
-                                        >
-                                            ×
-                                        </button>
-                                    )}
-                                </div>
-                            );
-                        })}
-                        {showAddButton && (
-                            <button
-                                type="button"
-                                onClick={() => addMcqOption(versionIndex)}
-                                style={{ marginTop: '10px', padding: '5px 10px' }}
-                            >
-                                + Add Option
-                            </button>
-                        )}
-                    </div>
-                )}
-
-                <h2>Solution:</h2>
-                {questionType === 'MCQ' ? (
-                    <select
-                        value={solutions[versionIndex]}
-                        onChange={e => saveSolution(e.target.value, versionIndex)}
-                        style={{ width: "100%", padding: "8px", marginBottom: "10px" }}
-                        required
-                    >
-                        <option value="">Select correct option</option>
-                        {validOptions.map((opt, idx) => (
-                            <option key={idx} value={String(idx)}>
-                                Option {idx + 1}: {opt}
-                            </option>
-                        ))}
-                    </select>
-                ) : (
-                    <div>
-                        <input
-                            type="text"
-                            value={solutions[versionIndex]}
-                            onChange={(e) => saveSolution(e.target.value, versionIndex)}
-                            style={{ width: "100%", padding: "8px", marginBottom: "10px" }}
-                        />
-                        <h2>Margin of Error:</h2>
-                        <input
-                            type="number"
-                            value={FRQErrMarg[versionIndex]}
-                            step="0.01"
-                            min="0"
-                            onChange={(e) => saveErrMarg(Number(e.target.value), versionIndex)}
-                            style={{ width: "100%", padding: "8px", marginBottom: "10px" }}
-                        />
-                    </div>
-                )}
-
-
-                <h2>Feedback:</h2>
-                <input
-                    type="text"
-                    value={feedbackBodies[versionIndex]}
-                    onChange={(e) => saveFeedback(e.target.value, versionIndex)}
-                    style={{ width: "100%", padding: "8px" }}
-                />
-
-                <div className="feedback-media-section">
-                    <h3>Feedback Media:</h3>
-                    <div>
-                        <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => handleFeedbackImageChange(e, versionIndex)}
-                        />
-                        {feedbackImagePreviews[versionIndex] && (
-                            <img
-                                src={feedbackImagePreviews[versionIndex]}
-                                alt={`Feedback preview v${versionIndex + 1}`}
-                                className="preview-image"
-                            />
-                        )}
-                    </div>
-                    <input
-                        type="text"
-                        placeholder="Paste YouTube or video URL"
-                        value={feedbackVideos[versionIndex]}
-                        onChange={(e) => handleVideoUrlChange(e.target.value, versionIndex)}
-                        className="video-url-input"
-                    />
-                    {feedbackVideos[versionIndex] && (
-                        <div className="video-preview">
-                            {feedbackVideos[versionIndex].includes('youtube') ? (
-                                <YouTubeEmbed url={feedbackVideos[versionIndex]} />
-                            ) : (
-                                <video controls src={feedbackVideos[versionIndex]} />
-                            )}
-                        </div>
-                    )}
-                </div>
-            </div>)
-    };
-
 
     return (
         <>
@@ -552,10 +376,6 @@ const QuestionCreatorComponent: React.FC<ClientComponentProps> = ({ instructor_i
                 {[0, 1, 2, 3].map(versionIndex => {
                     const currentOptions = mcqOptions[versionIndex];
                     const validOptions = currentOptions.filter(opt => opt.trim() !== '');
-                    const showAddButton =
-                        questionType === 'MCQ' &&
-                        validOptions.length < 4 &&
-                        currentOptions[validOptions.length] === '';
 
                     return (
                         <div

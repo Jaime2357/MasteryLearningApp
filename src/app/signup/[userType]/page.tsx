@@ -4,7 +4,11 @@ import Link from "next/link";
 
 type SignUpParams = { userType: string};
 
-export default async function LoginPage({ params }: { params: SignUpParams }) {
+interface PageProps {
+  params: Promise<SignUpParams>
+}
+
+export default async function LoginPage({ params }: PageProps) {
 
     const userType = await params;
     let action;

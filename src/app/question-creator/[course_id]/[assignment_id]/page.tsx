@@ -4,7 +4,11 @@ import QuestionCreatorComponent from './components/questionCreatorClient';
 
 type AssignmentParams = { course_id: string, assignment_id: string };
 
-export default async function QuestionCreator({ params }: { params: AssignmentParams }) {
+interface PageProps {
+  params: Promise<AssignmentParams>
+}
+
+export default async function QuestionCreator({ params }: PageProps) {
     const supabase = await createClient();
 
     // Authenticate user

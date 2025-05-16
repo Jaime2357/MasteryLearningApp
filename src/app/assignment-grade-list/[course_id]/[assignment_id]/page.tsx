@@ -7,6 +7,10 @@ import { redirect } from 'next/navigation';
 
 type CourseParams = { course_id: string, assignment_id: number };
 
+interface PageProps {
+  params: Promise<CourseParams>
+}
+
 type Submissions = {
     submission_id: number,
     student_id: string,
@@ -26,7 +30,7 @@ type Assignment = {
     total_points: number
 };
 
-export default async function AssignmentGradeList({ params }: { params: CourseParams }) {
+export default async function AssignmentGradeList({ params }: PageProps) {
 
     const supabase = await createClient(); // Create Supabase Client
     const { course_id, assignment_id } = await params; // Extract Course ID and Assignment ID

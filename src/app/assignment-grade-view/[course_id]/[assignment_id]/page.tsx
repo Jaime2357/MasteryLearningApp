@@ -8,13 +8,10 @@ import { ChevronLeft } from "lucide-react";
 
 type AssignmentParams = { course_id: string, assignment_id: string };
 
-// interface Question {
-//     question_id: string;
-//     question_body: string[];
-//     points: number;
-//     solutions: string[];
-//     question_image?: string[]; // Added image paths
-// }
+interface PageProps {
+  params: Promise<AssignmentParams>
+}
+
 
 interface SubmittedQuestion {
 	questionText: string;
@@ -60,7 +57,7 @@ interface StructuredData {
 //   total_points: number;
 // }
 
-export default async function AssignmentResultPage({ params }: { params: AssignmentParams }) {
+export default async function AssignmentResultPage({ params }: PageProps) {
 	const supabase = await createClient();
 
 	// Authenticate user

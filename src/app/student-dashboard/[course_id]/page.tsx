@@ -14,7 +14,11 @@ type Submission = {
 
 type CourseParams = { course_id: string };
 
-export default async function StudentDashboard({ params }: { params: CourseParams }) {
+interface PageProps {
+  params: Promise<CourseParams>
+}
+
+export default async function StudentDashboard({ params }: PageProps) {
 
 	const supabase = await createClient();
 
