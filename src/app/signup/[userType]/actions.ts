@@ -1,7 +1,6 @@
 "use server"
 
 import { createClient } from "@/utils/supabase/server";
-import { redirect } from "next/navigation";
 
 export async function createStudent(formData: FormData) {
 
@@ -16,6 +15,7 @@ export async function createStudent(formData: FormData) {
 
     if (signupError) {
         console.error("Error creating user: ", signupError.message)
+        return { error: true }
     }
     else {
         const studentData = {
@@ -29,9 +29,10 @@ export async function createStudent(formData: FormData) {
 
         if (insertionError) {
             console.error("Error inserting student data: ", insertionError.message)
+            return { error: true }
         }
 
-        redirect("/");
+        return { error: false }
 
     }
 }
@@ -50,6 +51,7 @@ export async function createInstructor(formData: FormData) {
     if (signupError) {
         console.error("Error creating user: ", signupError.message)
         console.error("Error inserting student data: ", signupError.message);
+        return { error: true }
     }
     else {
         const instructorData = {
@@ -63,7 +65,8 @@ export async function createInstructor(formData: FormData) {
 
         if (insertionError) {
             console.error("Error inserting instructor data: ", insertionError.message)
+            return { error: true }
         }
-        redirect('/');
+        return { error: false }
     }
 }
