@@ -2,7 +2,7 @@
 
 This app is built on Next.js with Supabase as a database/backend solution. It is also cloud hosted via Vercel. 
 
-**Code Structure: **
+**Code Structure:**
 - To utilize next.js's App Router built in routing, the code is organized into folders corresponding to their URI Routes.
 - Within each folder is a ```page.tsx``` file, this is where the server component is stored, code that is pre-rendered server-side
 - Some folders have a ```components``` folder, which typically contains client components. There are rendered client side as children of the server-side component and are used to allow for the page to update its state and trigger a rerender.
