@@ -29,7 +29,7 @@ const SignupComponent: React.FC<ClientComponentProps> = ({ userType }) => {
 
         const formData = new FormData(e.currentTarget)
         let result
-        if (typeName === 'student') {
+        if (typeName === 'Student') {
             result = await createStudent(formData)
         }
         else {
